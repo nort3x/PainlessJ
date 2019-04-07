@@ -10,3 +10,17 @@ The source code is available as well on **[BitBucket](https://bitbucket.org/beeg
 - The app is 100% open source and has no ads.
 - The app asks for the user permission to access location because since Android > V6 requires permission from the user for location service to scan WiFi networks. Makes no sense, but that's how it is :(
 
+**Some screenshots:**    
+First start:    
+![first_start](images/1-start.png)   
+Enter painlessMesh network credentials by pushing the settings button:    
+![credentials](images/2-credentials.png)    
+Before connecting, to connect push the connect button:    
+![pre_connect](images/3-pre-connect.png)    
+After connection is established received user packets are displayed as a scrollable list and last control package received is shown as status:    
+![connected](images/5-updated event.png)    
+For sending user packages a list of connected nodes is displayed for selection, push the send button to start sending:    
+![send_choose_node](images/6-send-1.png)    
+The user package message can be entered as text (e.g. as a JSON object):    
+![send_enter_msg](images/6-send-3.png)    
+The list of received user packages can be cleared by using the bin button
