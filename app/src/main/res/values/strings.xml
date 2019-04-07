@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">PainlessMesh</string>
+    <string name="action_settings">Settings</string>
+
+    <string name="mesh_sett_name">painlessMesh SSID</string>
+    <string name="mesh_sett_pw">painlessMesh PW</string>
+    <string name="mesh_sett_port">painlessMesh Port</string>
+    <string name="mesh_sett_name_hint">YOUR MESH SSID</string>
+    <string name="mesh_sett_pw_hint">YOUR MESH PASSWORD</string>
+    <string name="mesh_sett_port_hint">5555</string>
+    <string name="mesh_sett_save">Save</string>
+    <string name="mesh_sett_cancel">Cancel</string>
+
+    <string name="mesh_disconnected">Not connected</string>
+    <string name="mesh_last_status">Last event</string>
+    <string name="mesh_connected">Connected</string>
+    <string name="mesh_connecting">Connecting</string>
+
+    <string name="mesh_list_header">Select Mesh node ID\'s</string>
+    <string name="mesh_list_empty">No known nodes found</string>
+    <string name="mesh_send_receiver">Receiving node</string>
+    <string name="mesh_send_msg_header">Enter message below</string>
+    <string name="mesh_send_button">SEND</string>
+    <string name="mesh_send_broadcast">BROADCAST</string>
+
+    <string name="mesh_event_time_delay">TIME_DELAY</string>
+    <string name="mesh_event_time_sync">TIME_SYNC</string>
+    <string name="mesh_event_node_req">NODE_SYNC_REQUEST</string>
+    <string name="mesh_event_node_reply">NODE_SYNC_REPLY</string>
+
+</resources>
