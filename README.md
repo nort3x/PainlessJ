@@ -18,7 +18,7 @@ Enter painlessMesh network credentials by pushing the settings button:
 Before connecting, to connect push the connect button:    
 ![pre_connect](images/3-pre-connect.png)    
 After connection is established received user packets are displayed as a scrollable list and last control package received is shown as status:    
-![connected](images/5-updated event.png)    
+![connected](images/4-connected.png)    
 For sending user packages a list of connected nodes is displayed for selection, push the send button to start sending:    
 ![send_choose_node](images/6-send-1.png)    
 The user package message can be entered as text (e.g. as a JSON object):    
