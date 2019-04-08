@@ -8,7 +8,7 @@ android {
         targetSdkVersion 28
         versionCode 1
         versionName "1.0"
-        project.ext.set("archivesBaseName", "tk.giesecke.painlessmesh-VERSION_" + defaultConfig.versionName)
+        project.ext.set("archivesBaseName", "tk.giesecke.painlessmesh-V_" + defaultConfig.versionName)
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
     buildTypes {
