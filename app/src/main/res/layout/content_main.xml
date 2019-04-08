@@ -4,21 +4,31 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/colorDialog_Background"
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
-    tools:context=".MainActivity"
+    tools:context=".MeshActivity"
+    tools:ignore="ContentDescription"
     tools:showIn="@layout/activity_main">
+
+    <View
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/tv_mesh_last_event"
+        android:layout_alignParentTop="true"
+        android:background="@color/colorPrimary" />
 
     <TextView
         android:id="@+id/tv_mesh_conn_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentStart="true"
+        android:layout_toStartOf="@+id/bt_clean"
         android:layout_marginStart="2dp"
         android:layout_marginTop="2dp"
         android:layout_marginEnd="2dp"
         android:layout_marginBottom="2dp"
         android:text="@string/mesh_disconnected"
-        android:textColor="@android:color/black" />
+        android:textColor="@android:color/white" />
 
     <TextView
         android:id="@+id/tv_mesh_last_event"
@@ -26,17 +36,69 @@
         android:layout_height="wrap_content"
         android:layout_below="@+id/tv_mesh_conn_status"
         android:layout_alignParentStart="true"
+        android:layout_toStartOf="@+id/bt_clean"
         android:layout_marginStart="2dp"
         android:layout_marginTop="2dp"
         android:layout_marginEnd="2dp"
         android:layout_marginBottom="2dp"
         android:text="@string/mesh_last_status"
-        android:textColor="@android:color/black" />
+        android:textColor="@android:color/white" />
+
+    <!--<ImageButton-->
+    <!--android:id="@+id/bt_send"-->
+    <!--android:layout_width="wrap_content"-->
+    <!--android:layout_height="wrap_content"-->
+    <!--android:layout_alignTop="@+id/tv_mesh_conn_status"-->
+    <!--android:layout_alignBottom="@+id/tv_mesh_last_event"-->
+    <!--android:layout_marginStart="5dp"-->
+    <!--android:layout_marginTop="5dp"-->
+    <!--android:layout_marginEnd="5dp"-->
+    <!--android:layout_marginBottom="5dp"-->
+    <!--android:layout_toStartOf="@+id/bt_clean"-->
+    <!--android:background="@color/colorPrimary"-->
+    <!--android:padding="5dp"-->
+    <!--android:src="@drawable/ic_menu_send" />-->
+
+    <ImageButton
+        android:id="@+id/bt_clean"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignTop="@+id/tv_mesh_conn_status"
+        android:layout_alignBottom="@+id/tv_mesh_last_event"
+        android:layout_marginStart="5dp"
+        android:layout_marginTop="5dp"
+        android:layout_marginEnd="5dp"
+        android:layout_marginBottom="5dp"
+        android:layout_toStartOf="@+id/bt_filter"
+        android:background="@color/colorPrimary"
+        android:padding="5dp"
+        android:src="@drawable/ic_menu_clean" />
+
+    <ImageButton
+        android:id="@+id/bt_filter"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignTop="@+id/tv_mesh_conn_status"
+        android:layout_alignBottom="@+id/tv_mesh_last_event"
+        android:layout_alignParentEnd="true"
+        android:layout_marginStart="5dp"
+        android:layout_marginTop="5dp"
+        android:layout_marginEnd="5dp"
+        android:layout_marginBottom="5dp"
+        android:background="@color/colorPrimary"
+        android:padding="5dp"
+        android:src="@drawable/ic_action_filter" />
 
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@+id/tv_mesh_last_event">
+        android:layout_below="@+id/tv_mesh_last_event"
+        android:layout_marginStart="5dp"
+        android:layout_marginTop="5dp"
+        android:layout_marginEnd="5dp"
+        android:layout_marginBottom="5dp"
+        android:background="@android:color/white"
+        android:fadeScrollbars="false">
 
         <TextView
             android:id="@+id/mesh_msgs"

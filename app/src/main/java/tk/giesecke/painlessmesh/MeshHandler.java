@@ -11,6 +11,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Class if handling functions to manage mesh network events and tasks
+ */
 class MeshHandler {
 
     /** Debug tag */
@@ -50,7 +53,7 @@ class MeshHandler {
 
     /**
      * Returns MAC address of the given interface name.
-     * @return  mac address or empty string
+     * @return  mac address or fake MAC address
      */
     static String getWifiMACAddress() {
         try {
@@ -84,7 +87,7 @@ class MeshHandler {
         JSONObject meshMessage = new JSONObject();
         try {
             meshMessage.put("dest", rcvNode);
-            meshMessage.put("from", MainActivity.myNodeId);
+            meshMessage.put("from", MeshActivity.myNodeId);
             if (rcvNode == 0) {
                 meshMessage.put("type", 8);
             } else {
@@ -109,10 +112,33 @@ class MeshHandler {
         JSONObject nodeMessage = new JSONObject();
         JSONArray subsArray = new JSONArray();
         try {
-            nodeMessage.put("dest", MainActivity.apNodeId);
-            nodeMessage.put("from", MainActivity.myNodeId);
+            nodeMessage.put("dest", MeshActivity.apNodeId);
+            nodeMessage.put("from", MeshActivity.myNodeId);
             nodeMessage.put("type", 5);
             nodeMessage.put("subs", subsArray);
+            String msg = nodeMessage.toString();
+            byte[] data = msg.getBytes();
+            if (MeshConnector.isConnected()) {
+                MeshConnector.WriteData(data);
+            }
+            Log.d(DBG_TAG, "Sending node sync request" + msg);
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Send a node sync request to the painlessMesh network
+     */
+    static void sendTimeSyncRequest() {
+        JSONObject nodeMessage = new JSONObject();
+        JSONObject typeObject = new JSONObject();
+        try {
+            nodeMessage.put("dest", MeshActivity.apNodeId);
+            nodeMessage.put("from", MeshActivity.myNodeId);
+            nodeMessage.put("type", 4);
+            typeObject.put("type", 0);
+            nodeMessage.put("msg", typeObject);
             String msg = nodeMessage.toString();
             byte[] data = msg.getBytes();
             if (MeshConnector.isConnected()) {
@@ -138,7 +164,8 @@ class MeshHandler {
         try {
             JSONObject routingTop = new JSONObject(routingInfo);
             long from = routingTop.getLong("from");
-            nodesList.add(MainActivity.myNodeId);
+            // TODO does it make sense to add our own nodeID? Cannot send to ourselfs!
+//            nodesList.add(MeshActivity.myNodeId);
             nodesList.add(from);
             getSubsNodeId(routingTop);
         } catch (JSONException e) {

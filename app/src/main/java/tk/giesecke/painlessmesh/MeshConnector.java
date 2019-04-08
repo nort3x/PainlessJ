@@ -12,6 +12,10 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * Class to handle the TCP connection and communication
+ * with the mesh network
+ */
 class MeshConnector {
     private static final String DBG_TAG = "MeshConnector"; //For debugging, always a good idea to have defined
 
@@ -20,20 +24,25 @@ class MeshConnector {
     /** Action for diconnect because of error */
     static final String MESH_DISCON_ERR = "DATA";
 
+    /** Flag if the TCP receiving thread was started */
     private static boolean receiveThreadRunning = false;
-    private static long startTime = 0L;
 
+    /** Socket for the communication with the mesh network */
     private static Socket connectionSocket;
 
     //Runnables for sending and receiving data
     private static SendRunnable sendRunnable;
-    //Threads to execute the Runnables above
+    //Threads to execute the sending
     private static Thread sendThread;
+    //Threads to execute the receiving
     private static Thread receiveThread;
 
+    /** Local copy of the mesh network AP gateway address */
     private static String severIp =   "192.168.0.2";
+    /** Local copy of the mesh network communication port */
     private static int serverPort = 1234;
 
+    /** Application context required for broadcast messages */
     private static Context appContext;
 
     /**
@@ -45,7 +54,7 @@ class MeshConnector {
     }
 
     /**
-     * Open connection to server
+     * Open connection to mesh network node
      */
     static void Connect(String ip, int port, Context thisContext) {
         severIp = ip;
@@ -55,7 +64,7 @@ class MeshConnector {
     }
 
     /**
-     * Close connection to server
+     * Close connection to mesh network node
      */
     static void Disconnect() {
         stopThreads();
@@ -70,7 +79,7 @@ class MeshConnector {
     }
 
     /**
-     * Send data to server
+     * Send data to mesh network
      * @param data byte array to send
      */
     static void WriteData(byte[] data) {
@@ -80,6 +89,9 @@ class MeshConnector {
         }
     }
 
+    /**
+     * Stop the receiving and sending threads
+     */
     private static void stopThreads() {
         if (receiveThread != null)
             receiveThread.interrupt();
@@ -88,18 +100,27 @@ class MeshConnector {
             sendThread.interrupt();
     }
 
+    /**
+     * Start the thread for sending data
+     */
     private static void startSending() {
         sendRunnable = new SendRunnable(connectionSocket);
         sendThread = new Thread(sendRunnable);
         sendThread.start();
     }
 
+    /**
+     * Start the thread for receiving data
+     */
     private static void startReceiving() {
         ReceiveRunnable receiveRunnable = new ReceiveRunnable(connectionSocket);
         receiveThread = new Thread(receiveRunnable);
         receiveThread.start();
     }
 
+    /**
+     * Runnable handling receiving data from the mesh network
+     */
     static class ReceiveRunnable implements Runnable {
         private final Socket sock;
         private InputStream input;
@@ -120,7 +141,6 @@ class MeshConnector {
                 if (!receiveThreadRunning)
                     receiveThreadRunning = true;
 
-                startTime = System.currentTimeMillis();
                 try {
                     byte[] buffer = new byte[4096];
                     //Read the first integer, it defines the length of the data to expect
@@ -136,15 +156,11 @@ class MeshConnector {
                         rcvdMsg = rcvdMsg.substring(0, realLen+1);
                         Log.i(DBG_TAG, "Received " + readLen + " bytes: " + rcvdMsg);
 
-                        long time = System.currentTimeMillis() - startTime;
-                        Log.i(DBG_TAG, "Data received! Took: " + time + "ms and got: " + (readLen-1) + "bytes");
+                        Log.i(DBG_TAG, "Data received!");
 
                         sendMyBroadcast(MESH_DATA_RECVD, rcvdMsg);
                     }
 
-                    // TODO we want to continue to receive all the time
-                    //Stop listening so we don't have e thread using up CPU-cycles when we're not expecting data
-//                    stopThreads();
                 } catch (IOException e) {
                     sendMyBroadcast(MESH_DISCON_ERR, e.getMessage());
                     Disconnect(); //Gets stuck in a loop if we don't call this on error!
@@ -156,6 +172,9 @@ class MeshConnector {
 
     }
 
+    /**
+     * Runnable to send data to the mesh network
+     */
     static class SendRunnable implements Runnable {
 
         byte[] data;
@@ -182,38 +201,33 @@ class MeshConnector {
         @Override
         public void run() {
             Log.d(DBG_TAG, "Sending started");
-//            while (!Thread.currentThread().isInterrupted() && isConnected()) {
-                if (this.hasMessage) {
-                    startTime = System.currentTimeMillis();
-                    try {
-                        //Send the data
-                        this.out.write(data, 0, data.length);
-                        this.out.write(0);
-                        //Flush the stream to be sure all bytes has been written out
-                        this.out.flush();
-                    } catch (IOException e) {
-                        Log.d(DBG_TAG, "Sending failed: " + e.getMessage());
-                    }
-                    this.hasMessage = false;
-                    this.data =  null;
-                    long time = System.currentTimeMillis() - startTime;
-                    Log.i(DBG_TAG, "Command has been sent! Current duration: " + time + "ms");
-//                    if (!receiveThreadRunning)
-//                        startReceiving(); //Start the receiving thread if it's not already running
+            if (this.hasMessage) {
+                try {
+                    //Send the data
+                    this.out.write(data, 0, data.length);
+                    this.out.write(0);
+                    //Flush the stream to be sure all bytes has been written out
+                    this.out.flush();
+                } catch (IOException e) {
+                    Log.d(DBG_TAG, "Sending failed: " + e.getMessage());
                 }
-//            }
+                this.hasMessage = false;
+                this.data =  null;
+                Log.i(DBG_TAG, "Command has been sent!");
+            }
             Log.i(DBG_TAG, "Sending stopped");
         }
     }
 
+    /**
+     * Runnable to handle the connection to the mesh network
+     */
     static class ConnectRunnable implements Runnable {
-
         public void run() {
             try {
 
                 Log.d(DBG_TAG, "C: Connecting...");
                 InetAddress serverAddr = InetAddress.getByName(severIp);
-                startTime = System.currentTimeMillis();
                 //Create a new instance of Socket
                 connectionSocket = new Socket();
 
@@ -221,11 +235,12 @@ class MeshConnector {
                 //This will block the thread until a connection is established
                 connectionSocket.connect(new InetSocketAddress(serverAddr, serverPort), 5000);
 
-                long time = System.currentTimeMillis() - startTime;
-                Log.d(DBG_TAG, "Connected! Current duration: " + time + "ms");
+                Log.d(DBG_TAG, "Connected!");
 
-                MeshHandler.sendNodeSyncRequest();
+                // Start receiving data now
                 startReceiving();
+                // Request a list of known nodes
+                MeshHandler.sendNodeSyncRequest();
 
             } catch (Exception e) {
                 Log.d(DBG_TAG, "Connecting failed: " + e.getMessage());
@@ -236,16 +251,14 @@ class MeshConnector {
 
     /**
      * Send received message to all listing threads
-     *
-     * @param msgReceived
-     *            Received data or error message
+     * @param action Broadcast action to be sent
+     * @param msgReceived Received data or error message
      */
     private static void sendMyBroadcast(String action, String msgReceived) {
         /* Intent for activity internal broadcast messages */
         Intent broadCastIntent = new Intent();
         broadCastIntent.setAction(action);
         broadCastIntent.putExtra("msg", msgReceived);
-//        LocalBroadcastManager.getInstance(appContext).sendBroadcast(broadCastIntent);
         appContext.sendBroadcast(broadCastIntent);
     }
 }

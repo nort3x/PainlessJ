@@ -30,7 +30,9 @@ import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -41,7 +43,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
+/**
+ * Mesh activity, handles the UI
+ */
+public class MeshActivity extends AppCompatActivity {
 
     /** Tag for debug messages of service*/
     private static final String DBG_TAG = "MeshActivity";
@@ -74,6 +79,9 @@ public class MainActivity extends AppCompatActivity {
     /** The node id we connected to */
     public static long apNodeId = 0;
 
+    /** Filter for incoming messages */
+    private long filterId = 0;
+
     /** View for connection status */
     private TextView tv_mesh_conn;
     /** View for errors */
@@ -97,7 +105,7 @@ public class MainActivity extends AppCompatActivity {
     public void onResume() {
         // Get pointer to shared preferences
         mPrefs = getSharedPreferences(sharedPrefName,0);
-
+        // Get previous mesh network credentials
         meshName = mPrefs.getString("MESH_NAME", getResources().getString(R.string.mesh_sett_name_hint));
         meshPw = mPrefs.getString("MESH_PW", getResources().getString(R.string.mesh_sett_pw_hint));
         meshPort = mPrefs.getInt("MESH_PORT", 5555);
@@ -125,9 +133,16 @@ public class MainActivity extends AppCompatActivity {
         // Get the wifi manager
         wifiMgr = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
 
+        // Get views for the messages
         tv_mesh_msgs = findViewById(R.id.mesh_msgs);
         tv_mesh_conn = findViewById(R.id.tv_mesh_conn_status);
         tv_mesh_err = findViewById(R.id.tv_mesh_last_event);
+        // View for filter button
+        ImageButton ib_filter = findViewById(R.id.bt_filter);
+        ib_filter.setOnClickListener(v12 -> handleFilterRequest());
+        // View for clean button
+        ImageButton ib_clean = findViewById(R.id.bt_clean);
+        ib_clean.setOnClickListener(v12 -> tv_mesh_msgs.setText(""));
 
         // Register Mesh events
         IntentFilter intentFilter = new IntentFilter();
@@ -172,18 +187,19 @@ public class MainActivity extends AppCompatActivity {
                 }
                 finish();
                 break;
-            case R.id.action_clean:
-                tv_mesh_msgs.setText("");
-                break;
             case R.id.action_connect:
                 mi_mesh_conn_bt = item;
                 handleConnection();
                 break;
             case R.id.action_send:
-                if ((MeshHandler.nodesList == null) || (MeshHandler.nodesList.size() == 0)) {
-                    Toast.makeText(getApplicationContext(), getString(R.string.mesh_list_empty), Toast.LENGTH_SHORT).show();
+                if (MeshConnector.isConnected()) {
+                    if ((MeshHandler.nodesList == null) || (MeshHandler.nodesList.size() == 0)) {
+                        Toast.makeText(getApplicationContext(), getString(R.string.mesh_list_empty), Toast.LENGTH_SHORT).show();
+                    } else {
+                        selectNodesForSending();
+                    }
                 } else {
-                    showNodesList();
+                    Toast.makeText(getApplicationContext(), getString(R.string.mesh_no_connection), Toast.LENGTH_SHORT).show();
                 }
                 break;
         }
@@ -191,6 +207,48 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
+    /**
+     * Apply or remove filter to show only messages from a specific node
+     */
+    private void handleFilterRequest(){
+        if (MeshConnector.isConnected()) {
+            ArrayList<String> nodesListStr = new ArrayList<>();
+
+            ArrayList<Long> tempNodesList = new ArrayList<>(MeshHandler.nodesList);
+
+            tempNodesList.add(0L);
+            Collections.sort(tempNodesList);
+
+            for (int idx=0; idx<tempNodesList.size(); idx++) {
+                nodesListStr.add(String.valueOf(tempNodesList.get(idx)));
+            }
+            nodesListStr.set(0,getString(R.string.mesh_filter_clear));
+
+            ArrayAdapter<String> nodeListAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, nodesListStr);
+
+            AlertDialog.Builder builder = new AlertDialog.Builder(this);
+            builder.setTitle(getString(R.string.mesh_list_header))
+                    .setInverseBackgroundForced(true)
+                    .setNegativeButton(getString(android.R.string.cancel),
+                            (dialog, which) -> {
+                                // Do something here if you want
+                                dialog.dismiss();
+                            })
+                    .setAdapter(nodeListAdapter,
+                            (dialog, which) -> {
+                                filterId = tempNodesList.get(which);
+                                dialog.dismiss();
+                            });
+            builder.create();
+            builder.show();
+        } else {
+            Toast.makeText(getApplicationContext(), getString(R.string.mesh_no_connection), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Show the settings dialog to setup the mesh network credentials
+     */
     private void showSettingsDialog() {
         LayoutInflater settInflater = LayoutInflater.from(this);
         @SuppressLint("InflateParams") View settView = settInflater.inflate(R.layout.settings, null);
@@ -223,53 +281,88 @@ public class MainActivity extends AppCompatActivity {
         settDialog.show();
     }
 
+    /**
+     * Handle connect action events.
+     * Depending on current status
+     * - Start connection request
+     * - Cancel connection request if pending
+     * - Stop connection to the mesh network
+     */
     private void handleConnection() {
         if (!isConnected) {
-            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
-            mi_mesh_conn_bt.setIcon(R.drawable.ic_menu_disconnect);
-            tryToConnect = true;
-
-            tv_mesh_conn.setText(getResources().getString(R.string.mesh_connecting));
-
-            // Get Wifi manager
-            wifiMgr = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-
-            // Add device AP to network list and enable it
-            WifiConfiguration meshAPConfig = new WifiConfiguration();
-            meshAPConfig.SSID = "\""+meshName+"\"";
-            meshAPConfig.preSharedKey="\""+meshPw+"\"";
-            int newId = wifiMgr.addNetwork(meshAPConfig);
-            if (BuildConfig.DEBUG) Log.i(DBG_TAG, "Result of addNetwork: " + newId);
-            wifiMgr.disconnect();
-            wifiMgr.enableNetwork(newId, true);
-            wifiMgr.reconnect();
-
-        } else {
-            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
-            mi_mesh_conn_bt.setIcon(R.drawable.ic_menu_connect);
-            if (MeshConnector.isConnected()) {
-                MeshConnector.Disconnect();
+            if (tryToConnect) {
+                stopConnection();
+            } else {
+                startConnectionRequest();
             }
-            final Handler handler = new Handler();
-            handler.postDelayed(() -> {
-                isConnected = false;
-                List<WifiConfiguration> availAPs = wifiMgr.getConfiguredNetworks();
-
-                for (int index = 0; index < availAPs.size(); index++) {
-                    if (availAPs.get(index).SSID.equalsIgnoreCase("\""+meshName+"\"")) {
-                        wifiMgr.disconnect();
-                        wifiMgr.disableNetwork(availAPs.get(index).networkId);
-                        if (BuildConfig.DEBUG) Log.d(DBG_TAG, "Disabled: " + availAPs.get(index).SSID);
-                        wifiMgr.reconnect();
-                        break;
-                    }
-                }
-                tv_mesh_conn.setText(getResources().getString(R.string.mesh_disconnected));
-            },500);
+        } else {
+            stopConnection();
         }
     }
 
-    private void showNodesList() {
+    /**
+     * Add mesh network AP to the devices list of Wifi APs
+     * Enable mesh network AP to initiate connection to the mesh AP
+     */
+    private void startConnectionRequest() {
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
+        mi_mesh_conn_bt.setIcon(R.drawable.ic_menu_disconnect);
+        tryToConnect = true;
+
+        tv_mesh_conn.setText(getResources().getString(R.string.mesh_connecting));
+
+        // Get Wifi manager
+        wifiMgr = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+
+        // Add device AP to network list and enable it
+        WifiConfiguration meshAPConfig = new WifiConfiguration();
+        meshAPConfig.SSID = "\""+meshName+"\"";
+        meshAPConfig.preSharedKey="\""+meshPw+"\"";
+        int newId = wifiMgr.addNetwork(meshAPConfig);
+        if (BuildConfig.DEBUG) Log.i(DBG_TAG, "Result of addNetwork: " + newId);
+        wifiMgr.disconnect();
+        wifiMgr.enableNetwork(newId, true);
+        wifiMgr.reconnect();
+    }
+
+    /**
+     * Stop connection to the mesh network
+     * Disable the mesh AP in the device Wifi AP list so that
+     * the device reconnects to its default AP
+     */
+    private void stopConnection() {
+        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+        mi_mesh_conn_bt.setIcon(R.drawable.ic_menu_connect);
+        if (MeshConnector.isConnected()) {
+            MeshConnector.Disconnect();
+        }
+//        final Handler handler = new Handler();
+//        handler.postDelayed(() -> {
+        isConnected = false;
+        tryToConnect = false;
+        List<WifiConfiguration> availAPs = wifiMgr.getConfiguredNetworks();
+
+        for (int index = 0; index < availAPs.size(); index++) {
+            if (availAPs.get(index).SSID.equalsIgnoreCase("\""+meshName+"\"")) {
+                wifiMgr.disconnect();
+                wifiMgr.disableNetwork(availAPs.get(index).networkId);
+                if (BuildConfig.DEBUG) Log.d(DBG_TAG, "Disabled: " + availAPs.get(index).SSID);
+                wifiMgr.reconnect();
+                break;
+            }
+        }
+        tv_mesh_conn.setText(getResources().getString(R.string.mesh_disconnected));
+//        },500);
+    }
+
+    /**
+     * Show known mesh nodes as preparation of sending a message
+     * Uses a temporary nodes list in case the nodes list is refreshed
+     * while this dialog is still open
+     * Adds a BROADCAST node to enable sending broadcast messages to
+     * the mesh network
+     */
+    private void selectNodesForSending() {
         ArrayList<String> nodesListStr = new ArrayList<>();
 
         ArrayList<Long> tempNodesList = new ArrayList<>(MeshHandler.nodesList);
@@ -286,6 +379,7 @@ public class MainActivity extends AppCompatActivity {
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(getString(R.string.mesh_list_header))
+                .setInverseBackgroundForced(true)
                 .setNegativeButton(getString(android.R.string.cancel),
                         (dialog, which) -> {
                             // Do something here if you want
@@ -297,26 +391,33 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
+    /**
+     * Show the dialog to send a message to the mesh network
+     * Options
+     * - Send a time sync request
+     * - Send a node sync request
+     * - Send a user message
+     * @param selectedNode nodeID that the message should be sent to
+     */
     private void showSendDialog(long selectedNode) {
         // Get dialog layout
         LayoutInflater li = LayoutInflater.from(this);
-        @SuppressLint("InflateParams") View promptsView = li.inflate(R.layout.send_dialog, null);
+        @SuppressLint("InflateParams") View sendDialogView = li.inflate(R.layout.send_dialog, null);
 
         AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(
                 this);
 
-        TextView nodeToSendTo  = promptsView.findViewById(R.id.send_node_id);
+        TextView nodeToSendTo  = sendDialogView.findViewById(R.id.send_node_id);
         if (selectedNode == 0) {
             nodeToSendTo.setText(getString(R.string.mesh_send_broadcast));
         } else {
             nodeToSendTo.setText(String.valueOf(selectedNode));
         }
 
-        final EditText msgToSend = promptsView.findViewById(R.id.send_node_msg);
+        final EditText msgToSend = sendDialogView.findViewById(R.id.send_node_msg);
         final long rcvNodeId = selectedNode;
-
         // set prompts.xml to alert dialog builder
-        alertDialogBuilder.setView(promptsView)
+        alertDialogBuilder.setView(sendDialogView)
                 .setNegativeButton(getString(android.R.string.cancel),
                         (dialog, which) -> {
                             // Do something here if you want
@@ -334,8 +435,25 @@ public class MainActivity extends AppCompatActivity {
 
         // show it
         alertDialog.show();
+        final Button timeSyncReq = sendDialogView.findViewById(R.id.bt_time_req);
+        timeSyncReq.setOnClickListener(v12 -> {
+            MeshHandler.sendTimeSyncRequest();
+            alertDialog.cancel();
+        });
+        final Button nodeSyncReq = sendDialogView.findViewById(R.id.bt_node_req);
+        nodeSyncReq.setOnClickListener(v12 -> {
+            MeshHandler.sendNodeSyncRequest();
+            alertDialog.cancel();
+        });
     }
 
+    /**
+     * Local broadcast receiver
+     * Registered for
+     * - WiFi connection change events
+     * - Mesh network data events
+     * - Mesh network error events
+     */
     private final BroadcastReceiver localBroadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(final Context context, Intent intent) {
@@ -354,7 +472,7 @@ public class MainActivity extends AppCompatActivity {
                         if (tryToConnect) {
                             if (wifiOn.getExtraInfo().equalsIgnoreCase("\"" + meshName + "\""))
                             {
-                                Log.d(DBG_TAG, "Connected to Mesh network");
+                                Log.d(DBG_TAG, "Connected to Mesh network " + wifiOn.getExtraInfo());
                                 // Get the gateway IP address
                                 WifiManager wifiMgr = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
                                 DhcpInfo dhcpInfo;
@@ -381,7 +499,7 @@ public class MainActivity extends AppCompatActivity {
                                 runOnUiThread(() -> {
                                     tryToConnect = false;
 
-                                    String connMsg = getResources().getString(R.string.mesh_connected) + " as: " + String.valueOf(myNodeId) + " to " + meshName;
+                                    String connMsg = "ID: " + String.valueOf(myNodeId) + " on " + meshName;
                                     tv_mesh_conn.setText(connMsg);
 
                                     // Set flag that we are connected
@@ -414,6 +532,7 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     JSONObject rcvdJSON = new JSONObject(rcvdMsg);
                     int msgType = rcvdJSON.getInt("type");
+                    long fromNode = rcvdJSON.getLong("from");
                     switch (msgType) {
                         case 3: // TIME_DELAY
                             tv_mesh_err.setText(getString(R.string.mesh_event_time_delay));
@@ -435,13 +554,25 @@ public class MainActivity extends AppCompatActivity {
                         case 7: // CONTROL ==> deprecated
                             break;
                         case 8: // BROADCAST
+//                            fromNode = rcvdJSON.getLong("from");
+                            if (filterId != 0) {
+                                if (fromNode != filterId) {
+                                    return;
+                                }
+                            }
                             oldText = tv_mesh_msgs.getText().toString();
-                            oldText += "B: " + rcvdJSON.getString("msg") + "\n";
+                            oldText += "BC from " + String.valueOf(fromNode) + "\n\t" + rcvdJSON.getString("msg") + "\n";
                             tv_mesh_msgs.setText(oldText);
                             break;
                         case 9: // SINGLE
+//                            fromNode = rcvdJSON.getLong("from");
+                            if (filterId != 0) {
+                                if (fromNode != filterId) {
+                                    return;
+                                }
+                            }
                             oldText = tv_mesh_msgs.getText().toString();
-                            oldText += "S: " + rcvdJSON.getString("msg") + "\n";
+                            oldText += "SM from " + String.valueOf(fromNode) + "\n\t" + rcvdJSON.getString("msg") + "\n";
                             tv_mesh_msgs.setText(oldText);
                             break;
                     }
@@ -456,9 +587,10 @@ public class MainActivity extends AppCompatActivity {
                 MenuItem connectItem = thisMenu.findItem(R.id.action_connect);
                 connectItem.setIcon(R.drawable.ic_menu_connect);
                 tv_mesh_conn.setText(getResources().getString(R.string.mesh_disconnected));
-                // TODO what shall we do in this case?
+                // TODO what shall we do if we got disconnected? Does it make sense just to retry?
                 // We got disconnected, try to reconnect
                 isConnected = false;
+                tryToConnect = false;
                 handleConnection();
 //                MeshConnector.Connect(meshIP, meshPort, getApplicationContext());
             }
