@@ -4,10 +4,11 @@ Restrictions:
 - Not supported are (TIME_DELAY), (TIME_SYNC) and (NODE_SYNC_REPLY). 
 - The app is connecting to the closest painlessMesh AP. Due to restrictions of Android it can not have AP and STA mode running in parallel.
 
-The app is published on Google Play (pending) as PainlessMesh Listener and on **[www.apkfiles.com](https://www.apkfiles.com/apk-593855/painlessmesh-listener)**.
-The source code is available as well on **[BitBucket](https://bitbucket.org/beegee1962/painlessmesh_android/src/master/)**. 
+The app is published on [Google Play](https://play.google.com/store/apps/details?id=tk.giesecke.painlessmesh) as PainlessMesh Listener and on **[F-Droid](https://f-droid.org/en/)** (pending).
+The source code is available on **[Gitlab](https://gitlab.com/beegee1962/painlessmesh_android)**.
+Website with more information [painlessMesh and Android](https://desire.giesecke.tk/index.php/2019/04/09/painlessmesh-and-android/)
 
-- The app is 100% open source and has no ads.
+- The app is 100% open source and has no ads. (MIT license)
 - The app asks for the user permission to access location because since Android > V6 requires permission from the user for location service to scan WiFi networks. Makes no sense, but that's how it is :(
 
 **Some screenshots:**    

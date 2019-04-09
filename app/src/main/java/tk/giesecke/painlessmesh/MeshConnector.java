@@ -17,12 +17,17 @@ import java.nio.charset.StandardCharsets;
  * with the mesh network
  */
 class MeshConnector {
-    private static final String DBG_TAG = "MeshConnector"; //For debugging, always a good idea to have defined
+    /** Debug tag */
+    private static final String DBG_TAG = "MeshConnector";
 
     /** Action for MESH data arrived */
     static final String MESH_DATA_RECVD = "DATA";
     /** Action for diconnect because of error */
-    static final String MESH_DISCON_ERR = "DATA";
+    static final String MESH_DISCON_ERR = "DISCON";
+    /** Action for connection success */
+    static final String MESH_CONNECTED = "CON";
+    /** Action for received nodes list */
+    static final String MESH_NODES = "NODE";
 
     /** Flag if the TCP receiving thread was started */
     private static boolean receiveThreadRunning = false;
@@ -73,7 +78,7 @@ class MeshConnector {
             connectionSocket.close();
             Log.d(DBG_TAG,"Disconnected!");
         } catch (IOException e) {
-            Log.d(DBG_TAG, "Disconnect failed: " + e.getMessage());
+            Log.e(DBG_TAG, "Disconnect failed: " + e.getMessage());
         }
 
     }
@@ -130,7 +135,7 @@ class MeshConnector {
             try {
                 input = sock.getInputStream();
             } catch (Exception e) {
-                Log.d(DBG_TAG, "ReceiveRunnable failed: " + e.getMessage());
+                Log.e(DBG_TAG, "ReceiveRunnable failed: " + e.getMessage());
             }
         }
 
@@ -142,7 +147,7 @@ class MeshConnector {
                     receiveThreadRunning = true;
 
                 try {
-                    byte[] buffer = new byte[4096];
+                    byte[] buffer = new byte[8192];
                     //Read the first integer, it defines the length of the data to expect
                     int readLen = input.read(buffer,0,buffer.length);
                     if (readLen > 0) {
@@ -162,6 +167,7 @@ class MeshConnector {
                     }
 
                 } catch (IOException e) {
+                    Log.e(DBG_TAG, "Receiving loop stopped: " + e.getMessage());
                     sendMyBroadcast(MESH_DISCON_ERR, e.getMessage());
                     Disconnect(); //Gets stuck in a loop if we don't call this on error!
                 }
@@ -185,7 +191,7 @@ class MeshConnector {
             try {
                 this.out = server.getOutputStream();
             } catch (IOException e) {
-                Log.d(DBG_TAG, "Sending failed: " + e.getMessage());
+                Log.e(DBG_TAG, "Sending failed: " + e.getMessage());
             }
         }
 
@@ -209,7 +215,7 @@ class MeshConnector {
                     //Flush the stream to be sure all bytes has been written out
                     this.out.flush();
                 } catch (IOException e) {
-                    Log.d(DBG_TAG, "Sending failed: " + e.getMessage());
+                    Log.e(DBG_TAG, "Sending failed: " + e.getMessage());
                 }
                 this.hasMessage = false;
                 this.data =  null;
@@ -230,6 +236,13 @@ class MeshConnector {
                 InetAddress serverAddr = InetAddress.getByName(severIp);
                 //Create a new instance of Socket
                 connectionSocket = new Socket();
+                connectionSocket.setKeepAlive(true);
+                connectionSocket.setReceiveBufferSize(32768);
+                connectionSocket.setSendBufferSize(32768);
+                connectionSocket.setReuseAddress(true);
+
+                // Experimental
+                connectionSocket.setTrafficClass(0x04);
 
                 //Start connecting to the server with 5000ms timeout
                 //This will block the thread until a connection is established
@@ -243,8 +256,9 @@ class MeshConnector {
                 MeshHandler.sendNodeSyncRequest();
 
             } catch (Exception e) {
-                Log.d(DBG_TAG, "Connecting failed: " + e.getMessage());
+                Log.e(DBG_TAG, "Connecting failed: " + e.getMessage());
             }
+            sendMyBroadcast(MESH_CONNECTED,"");
             Log.i(DBG_TAG, "Connection thread finished");
         }
     }
@@ -254,7 +268,7 @@ class MeshConnector {
      * @param action Broadcast action to be sent
      * @param msgReceived Received data or error message
      */
-    private static void sendMyBroadcast(String action, String msgReceived) {
+    static void sendMyBroadcast(String action, String msgReceived) {
         /* Intent for activity internal broadcast messages */
         Intent broadCastIntent = new Intent();
         broadCastIntent.setAction(action);

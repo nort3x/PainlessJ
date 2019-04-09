@@ -16,6 +16,7 @@
     <string name="mesh_disconnected">Not connected</string>
     <string name="mesh_last_status">Last event</string>
     <string name="mesh_connecting">Connecting</string>
+    <string name="mesh_lost_connection">Lost connection, try to reconnect</string>
 
     <string name="mesh_list_header">Select Mesh node ID\'s</string>
     <string name="mesh_list_empty">No known nodes found</string>

@@ -7,26 +7,27 @@
     android:background="@color/colorDialog_Background"
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
     tools:context=".MeshActivity"
-    tools:ignore="ContentDescription"
+    tools:ignore="ContentDescription,Overdraw"
     tools:showIn="@layout/activity_main">
 
     <View
+        android:id="@+id/v_background"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignBottom="@+id/tv_mesh_last_event"
         android:layout_alignParentTop="true"
-        android:background="@color/colorPrimary" />
+        android:background="@android:color/holo_red_light" />
 
     <TextView
         android:id="@+id/tv_mesh_conn_status"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentStart="true"
-        android:layout_toStartOf="@+id/bt_clean"
         android:layout_marginStart="2dp"
         android:layout_marginTop="2dp"
         android:layout_marginEnd="2dp"
         android:layout_marginBottom="2dp"
+        android:layout_toStartOf="@+id/bt_share"
         android:text="@string/mesh_disconnected"
         android:textColor="@android:color/white" />
 
@@ -36,7 +37,7 @@
         android:layout_height="wrap_content"
         android:layout_below="@+id/tv_mesh_conn_status"
         android:layout_alignParentStart="true"
-        android:layout_toStartOf="@+id/bt_clean"
+        android:layout_toStartOf="@+id/bt_share"
         android:layout_marginStart="2dp"
         android:layout_marginTop="2dp"
         android:layout_marginEnd="2dp"
@@ -44,20 +45,20 @@
         android:text="@string/mesh_last_status"
         android:textColor="@android:color/white" />
 
-    <!--<ImageButton-->
-    <!--android:id="@+id/bt_send"-->
-    <!--android:layout_width="wrap_content"-->
-    <!--android:layout_height="wrap_content"-->
-    <!--android:layout_alignTop="@+id/tv_mesh_conn_status"-->
-    <!--android:layout_alignBottom="@+id/tv_mesh_last_event"-->
-    <!--android:layout_marginStart="5dp"-->
-    <!--android:layout_marginTop="5dp"-->
-    <!--android:layout_marginEnd="5dp"-->
-    <!--android:layout_marginBottom="5dp"-->
-    <!--android:layout_toStartOf="@+id/bt_clean"-->
-    <!--android:background="@color/colorPrimary"-->
-    <!--android:padding="5dp"-->
-    <!--android:src="@drawable/ic_menu_send" />-->
+    <ImageButton
+        android:id="@+id/bt_share"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignTop="@+id/tv_mesh_conn_status"
+        android:layout_alignBottom="@+id/tv_mesh_last_event"
+        android:layout_marginStart="5dp"
+        android:layout_marginTop="5dp"
+        android:layout_marginEnd="5dp"
+        android:layout_marginBottom="5dp"
+        android:layout_toStartOf="@+id/bt_clean"
+        android:background="@android:color/holo_red_light"
+        android:padding="5dp"
+        android:src="@drawable/ic_menu_share" />
 
     <ImageButton
         android:id="@+id/bt_clean"
@@ -70,7 +71,7 @@
         android:layout_marginEnd="5dp"
         android:layout_marginBottom="5dp"
         android:layout_toStartOf="@+id/bt_filter"
-        android:background="@color/colorPrimary"
+        android:background="@android:color/holo_red_light"
         android:padding="5dp"
         android:src="@drawable/ic_menu_clean" />
 
@@ -85,11 +86,12 @@
         android:layout_marginTop="5dp"
         android:layout_marginEnd="5dp"
         android:layout_marginBottom="5dp"
-        android:background="@color/colorPrimary"
+        android:background="@android:color/holo_red_light"
         android:padding="5dp"
-        android:src="@drawable/ic_action_filter" />
+        android:src="@drawable/ic_menu_filter" />
 
     <ScrollView
+        android:id="@+id/sv_msgs"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_below="@+id/tv_mesh_last_event"
@@ -103,7 +105,10 @@
         <TextView
             android:id="@+id/mesh_msgs"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
+            android:layout_height="wrap_content"
+            android:enabled="true"
+            android:textIsSelectable="true"
+            android:focusable="true" />
 
     </ScrollView>
 

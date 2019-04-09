@@ -101,7 +101,7 @@ class MeshHandler {
             }
             Log.d(DBG_TAG, "Sending data " + msg);
         } catch (JSONException e) {
-            e.printStackTrace();
+            Log.e(DBG_TAG, "Error sending data: " + e.getMessage());
         }
     }
 
@@ -123,7 +123,7 @@ class MeshHandler {
             }
             Log.d(DBG_TAG, "Sending node sync request" + msg);
         } catch (JSONException e) {
-            e.printStackTrace();
+            Log.e(DBG_TAG, "Error sending node sync request: " + e.getMessage());
         }
     }
 
@@ -144,9 +144,9 @@ class MeshHandler {
             if (MeshConnector.isConnected()) {
                 MeshConnector.WriteData(data);
             }
-            Log.d(DBG_TAG, "Sending node sync request" + msg);
+            Log.d(DBG_TAG, "Sending time sync request" + msg);
         } catch (JSONException e) {
-            e.printStackTrace();
+            Log.e(DBG_TAG, "Error sending time sync request: " + e.getMessage());
         }
     }
 
@@ -159,6 +159,9 @@ class MeshHandler {
         if (nodesList == null) {
             nodesList = new ArrayList<>();
         }
+        ArrayList<Long> oldNodesList = new ArrayList<>(nodesList);
+        Collections.sort(oldNodesList);
+
         nodesList.clear();
         // Start parsing the node list JSON
         try {
@@ -172,6 +175,16 @@ class MeshHandler {
             e.printStackTrace();
         }
         Log.d(DBG_TAG, "New nodes list: " + nodesList);
+        Collections.sort(nodesList);
+        boolean oldEqualNew = oldNodesList.containsAll(nodesList);
+        boolean newEqualOld = nodesList.containsAll(oldNodesList);
+        if (!oldEqualNew || !newEqualOld) {
+            StringBuilder nodesListStr = new StringBuilder("Nodeslist changed\n");
+            for (int idx=0; idx < nodesList.size(); idx++) {
+                nodesListStr.append(String.valueOf(nodesList.get(idx))).append("\n");
+            }
+            MeshConnector.sendMyBroadcast(MeshConnector.MESH_NODES, nodesListStr.toString());
+        }
     }
 
     /**

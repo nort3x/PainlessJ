@@ -10,6 +10,8 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.net.ConnectivityManager;
 import android.net.DhcpInfo;
 import android.net.NetworkInfo;
@@ -25,6 +27,7 @@ import androidx.core.app.ActivityCompat;
 import android.os.Handler;
 import android.os.StrictMode;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.Menu;
@@ -33,6 +36,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -60,6 +64,8 @@ public class MeshActivity extends AppCompatActivity {
     private static boolean tryToConnect = false;
     /** Flag if connection to Mesh was started */
     private static boolean isConnected = false;
+    /** Flag when user stops connection */
+    private static boolean userDisConRequest = false;
 
     /** WiFi manager to connect to Mesh network */
     private WifiManager wifiMgr;
@@ -92,6 +98,20 @@ public class MeshActivity extends AppCompatActivity {
     private Menu thisMenu;
     /** View for connect button */
     private MenuItem mi_mesh_conn_bt;
+
+    /** View for filter button */
+    ImageButton ib_filter;
+    // View for clean button
+    ImageButton ib_clean;
+    // View for share button
+    ImageButton ib_share;
+
+    /** View for top row */
+    View bckgndView;
+    /** Drawable for no connection */
+    Drawable backgndDisconnected;
+    /** Drawable for connection */
+    Drawable backgndConnected;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -138,16 +158,30 @@ public class MeshActivity extends AppCompatActivity {
         tv_mesh_conn = findViewById(R.id.tv_mesh_conn_status);
         tv_mesh_err = findViewById(R.id.tv_mesh_last_event);
         // View for filter button
-        ImageButton ib_filter = findViewById(R.id.bt_filter);
+        ib_filter = findViewById(R.id.bt_filter);
         ib_filter.setOnClickListener(v12 -> handleFilterRequest());
         // View for clean button
-        ImageButton ib_clean = findViewById(R.id.bt_clean);
+        ib_clean = findViewById(R.id.bt_clean);
         ib_clean.setOnClickListener(v12 -> tv_mesh_msgs.setText(""));
+        // View for share button
+        ib_share = findViewById(R.id.bt_share);
+        ib_share.setOnClickListener(v12 -> handleShareRequest());
+
+        // Prepare coloring for top row
+        bckgndView = findViewById(R.id.v_background);
+        backgndDisconnected = new ColorDrawable(getApplicationContext().getResources().getColor(android.R.color.holo_red_light));
+        backgndConnected = new ColorDrawable(getApplicationContext().getResources().getColor(android.R.color.holo_green_light));
+        bckgndView.setBackground(backgndDisconnected);
+        ib_filter.setBackground(backgndDisconnected);
+        ib_clean.setBackground(backgndDisconnected);
+        ib_share.setBackground(backgndDisconnected);
 
         // Register Mesh events
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(MeshConnector.MESH_DATA_RECVD);
         intentFilter.addAction(MeshConnector.MESH_DISCON_ERR);
+        intentFilter.addAction(MeshConnector.MESH_CONNECTED);
+        intentFilter.addAction(MeshConnector.MESH_NODES);
         // Register network change events
         intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
         // Register receiver
@@ -163,6 +197,26 @@ public class MeshActivity extends AppCompatActivity {
         }
         // unregister the broadcast receiver
         unregisterReceiver(localBroadcastReceiver);
+    }
+
+    @Override
+    protected void onPostResume() {
+        super.onPostResume();
+        if (MeshConnector.isConnected()) {
+            bckgndView.setBackground(backgndConnected);
+            tv_mesh_conn.setBackground(backgndConnected);
+            tv_mesh_err.setBackground(backgndConnected);
+            ib_filter.setBackground(backgndConnected);
+            ib_clean.setBackground(backgndConnected);
+            ib_share.setBackground(backgndConnected);
+        } else {
+            bckgndView.setBackground(backgndDisconnected);
+            tv_mesh_conn.setBackground(backgndDisconnected);
+            tv_mesh_err.setBackground(backgndDisconnected);
+            ib_filter.setBackground(backgndDisconnected);
+            ib_clean.setBackground(backgndDisconnected);
+            ib_share.setBackground(backgndDisconnected);
+        }
     }
 
     @Override
@@ -193,13 +247,13 @@ public class MeshActivity extends AppCompatActivity {
                 break;
             case R.id.action_send:
                 if (MeshConnector.isConnected()) {
-                    if ((MeshHandler.nodesList == null) || (MeshHandler.nodesList.size() == 0)) {
-                        Toast.makeText(getApplicationContext(), getString(R.string.mesh_list_empty), Toast.LENGTH_SHORT).show();
-                    } else {
+//                    if ((MeshHandler.nodesList == null) || (MeshHandler.nodesList.size() == 0)) {
+//                        showToast(getString(R.string.mesh_list_empty), Toast.LENGTH_SHORT);
+//                    } else {
                         selectNodesForSending();
-                    }
+//                    }
                 } else {
-                    Toast.makeText(getApplicationContext(), getString(R.string.mesh_no_connection), Toast.LENGTH_SHORT).show();
+                    showToast(getString(R.string.mesh_no_connection), Toast.LENGTH_SHORT);
                 }
                 break;
         }
@@ -242,7 +296,7 @@ public class MeshActivity extends AppCompatActivity {
             builder.create();
             builder.show();
         } else {
-            Toast.makeText(getApplicationContext(), getString(R.string.mesh_no_connection), Toast.LENGTH_SHORT).show();
+            showToast(getString(R.string.mesh_no_connection), Toast.LENGTH_SHORT);
         }
     }
 
@@ -308,6 +362,7 @@ public class MeshActivity extends AppCompatActivity {
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LOCKED);
         mi_mesh_conn_bt.setIcon(R.drawable.ic_menu_disconnect);
         tryToConnect = true;
+        userDisConRequest = false;
 
         tv_mesh_conn.setText(getResources().getString(R.string.mesh_connecting));
 
@@ -336,10 +391,9 @@ public class MeshActivity extends AppCompatActivity {
         if (MeshConnector.isConnected()) {
             MeshConnector.Disconnect();
         }
-//        final Handler handler = new Handler();
-//        handler.postDelayed(() -> {
         isConnected = false;
         tryToConnect = false;
+        userDisConRequest = true;
         List<WifiConfiguration> availAPs = wifiMgr.getConfiguredNetworks();
 
         for (int index = 0; index < availAPs.size(); index++) {
@@ -352,7 +406,12 @@ public class MeshActivity extends AppCompatActivity {
             }
         }
         tv_mesh_conn.setText(getResources().getString(R.string.mesh_disconnected));
-//        },500);
+        bckgndView.setBackground(backgndDisconnected);
+        tv_mesh_conn.setBackground(backgndDisconnected);
+        tv_mesh_err.setBackground(backgndDisconnected);
+        ib_filter.setBackground(backgndDisconnected);
+        ib_clean.setBackground(backgndDisconnected);
+        ib_share.setBackground(backgndDisconnected);
     }
 
     /**
@@ -445,6 +504,57 @@ public class MeshActivity extends AppCompatActivity {
             MeshHandler.sendNodeSyncRequest();
             alertDialog.cancel();
         });
+    }
+
+    /**
+     * Share current content of the message list through available
+     * share resources (email/gmail/sms/facebook/...)
+     */
+    private void handleShareRequest() {
+        Intent sharingIntent = new Intent(android.content.Intent.ACTION_SEND);
+        sharingIntent.setType("text/plain");// Plain format text
+
+        // You can add subject also
+        /*
+         * sharingIntent.putExtra( android.content.Intent.EXTRA_SUBJECT,
+         * "Subject Here");
+         */
+        sharingIntent.putExtra( android.content.Intent.EXTRA_SUBJECT, meshName);
+        StringBuilder sharedMessage = new StringBuilder(meshName + "\nKnown nodes:\n");
+        for (int idx=0; idx < MeshHandler.nodesList.size(); idx++) {
+            sharedMessage.append(String.valueOf(MeshHandler.nodesList.get(idx))).append("\n");
+        }
+        sharedMessage.append(tv_mesh_msgs.getText().toString());
+        sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, sharedMessage.toString());
+        startActivity(Intent.createChooser(sharingIntent, "Share collected messages using"));
+    }
+
+    /**
+     * Scroll the text view with the received messages to the bottom
+     */
+    private void scrollViewDown() {
+        final ScrollView scrollview = findViewById(R.id.sv_msgs);
+        scrollview.post(() -> scrollview.fullScroll(ScrollView.FOCUS_DOWN));
+    }
+
+    /**
+     * Show a custom toast (different colors, located in the center of the screen
+     * @param msg Text to be displayed in the toast
+     */
+    private void showToast(String msg, int length) {
+        LayoutInflater inflater = getLayoutInflater();
+        View layouttoast = inflater.inflate(R.layout.custom_toast, findViewById(R.id.toastcustom));
+        TextView toastText = layouttoast.findViewById(R.id.texttoast);
+        toastText.setText(msg);
+        toastText.setGravity(Gravity.CENTER);
+
+        Toast toast = new Toast(getBaseContext());
+        toast.setView(layouttoast);
+
+        toast.setGravity(Gravity.CENTER, 0, 0);
+        toast.setDuration(length);
+
+        toast.show();
     }
 
     /**
@@ -554,7 +664,6 @@ public class MeshActivity extends AppCompatActivity {
                         case 7: // CONTROL ==> deprecated
                             break;
                         case 8: // BROADCAST
-//                            fromNode = rcvdJSON.getLong("from");
                             if (filterId != 0) {
                                 if (fromNode != filterId) {
                                     return;
@@ -565,7 +674,6 @@ public class MeshActivity extends AppCompatActivity {
                             tv_mesh_msgs.setText(oldText);
                             break;
                         case 9: // SINGLE
-//                            fromNode = rcvdJSON.getLong("from");
                             if (filterId != 0) {
                                 if (fromNode != filterId) {
                                     return;
@@ -582,17 +690,43 @@ public class MeshActivity extends AppCompatActivity {
                     oldText += "E: " + intent.getStringExtra("msg") + "\n";
                     tv_mesh_msgs.setText(oldText);
                 }
+                scrollViewDown();
             } else if (MeshConnector.MESH_DISCON_ERR.equals(intentAction)) {
+                if (MeshHandler.nodesList != null) {
+                    MeshHandler.nodesList.clear();
+                }
+                if (!userDisConRequest) {
+                    showToast(getString(R.string.mesh_lost_connection), Toast.LENGTH_LONG);
                 tv_mesh_err.setText(intent.getStringExtra("msg"));
                 MenuItem connectItem = thisMenu.findItem(R.id.action_connect);
                 connectItem.setIcon(R.drawable.ic_menu_connect);
                 tv_mesh_conn.setText(getResources().getString(R.string.mesh_disconnected));
                 // TODO what shall we do if we got disconnected? Does it make sense just to retry?
-                // We got disconnected, try to reconnect
+                    // We got disconnected without user request, try to reconnect
+                    handleConnection();
+                }
                 isConnected = false;
                 tryToConnect = false;
-                handleConnection();
-//                MeshConnector.Connect(meshIP, meshPort, getApplicationContext());
+                bckgndView.setBackground(backgndDisconnected);
+                ib_filter.setBackground(backgndDisconnected);
+                ib_clean.setBackground(backgndDisconnected);
+                ib_share.setBackground(backgndDisconnected);
+                tv_mesh_conn.setBackground(backgndDisconnected);
+                tv_mesh_err.setBackground(backgndDisconnected);
+            } else if (MeshConnector.MESH_CONNECTED.equals(intentAction)) {
+                bckgndView.setBackground(backgndConnected);
+                ib_filter.setBackground(backgndConnected);
+                ib_clean.setBackground(backgndConnected);
+                ib_share.setBackground(backgndConnected);
+                tv_mesh_conn.setBackground(backgndConnected);
+                tv_mesh_err.setBackground(backgndConnected);
+                userDisConRequest = false;
+            } else if (MeshConnector.MESH_NODES.equals(intentAction)) {
+                String oldText;
+                oldText = tv_mesh_msgs.getText().toString();
+                oldText += intent.getStringExtra("msg") + "\n";
+                tv_mesh_msgs.setText(oldText);
+                scrollViewDown();
             }
         }
     };
