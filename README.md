@@ -15,16 +15,16 @@ Website with more information [painlessMesh and Android](https://desire.giesecke
 First start, app requesting permission:    
 ![first_start](images/1-start.png)   
 Settings main screen:    
-![credentials](images/2-1-settings.png)    
+![settings](images/2-1-settings.png)    
 Credentials settings:    
-![pre_connect](images/2-2-credentials.png)![pre_connect](images/2-3-credentials.png)    
+![credentials](images/2-2-credentials.png)![credentials](images/2-3-credentials.png)    
 Setup predefined messages:    
-![connected](images/3-1\messages)![connected](images/3-2\messages)![connected](images/3-3\messages)    
+![pre-defined-messages](images/3-1-messages)![pre-defined-messages](images/3-2-messages)![pre-defined-messages](images/3-3-messages)    
 Connected, receiving messages, possible to send predefined messages as broadcast from buttons at buttom:    
-![send_choose_node](images/4-connected.png)    
+![connected](images/4-connected.png)    
 Sending messages, first select of nodeId:    
-![send_enter_msg](images/6-send-1.png)    
+![send_select_node](images/6-send-1.png)    
 Sending messages, type message or select from predefined messages:    
-![send_enter_msg](images/6-send-2.png)![send_enter_msg](images/6-send-3.png)    
+![send_enter_msg](images/6-send-2.png)![send_choose_msg](images/6-send-3.png)    
 Display of received messages can be filter by nodeID:    
-![send_enter_msg](images/7-filter.png)    
+![filter_msg](images/7-filter.png)    
