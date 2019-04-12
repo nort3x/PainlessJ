@@ -5,38 +5,12 @@
     android:layout_height="wrap_content"
     android:background="@color/colorDialog_Background"
     android:orientation="vertical"
-    tools:ignore="RelativeOverlap,AutoFill,LabelFor">
-
-    <Button
-        android:id="@+id/bt_time_req"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="15dp"
-        android:layout_marginTop="15dp"
-        android:layout_marginEnd="15dp"
-        android:layout_marginBottom="15dp"
-        android:background="@color/colorPrimary"
-        android:text="@string/mesh_send_time_sync_req"
-        android:textColor="@android:color/white" />
-
-    <Button
-        android:id="@+id/bt_node_req"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentEnd="true"
-        android:layout_marginStart="15dp"
-        android:layout_marginTop="15dp"
-        android:layout_marginEnd="15dp"
-        android:layout_marginBottom="15dp"
-        android:background="@color/colorPrimary"
-        android:text="@string/mesh_send_node_sync_req"
-        android:textColor="@android:color/white" />
+    tools:ignore="RelativeOverlap,AutoFill,LabelFor,HardcodedText">
 
     <TextView
         android:id="@+id/send_node_id_txt"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/bt_time_req"
         android:layout_marginStart="15dp"
         android:layout_marginTop="2dp"
         android:layout_marginEnd="2dp"
@@ -49,7 +23,6 @@
         android:id="@+id/send_node_id"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/bt_time_req"
         android:layout_alignParentEnd="true"
         android:layout_marginStart="2dp"
         android:layout_marginTop="2dp"
@@ -86,5 +59,98 @@
         android:inputType="text|textMultiLine"
         android:textColor="@android:color/black"
         android:textSize="18sp" />
+
+    <TextView
+        android:id="@+id/send_node_pred_msg_txt"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/send_node_msg"
+        android:layout_marginStart="15dp"
+        android:layout_marginTop="2dp"
+        android:layout_marginEnd="2dp"
+        android:layout_marginBottom="2dp"
+        android:text="@string/mesh_send_sel_pred"
+        android:textColor="@android:color/black"
+        android:textSize="18sp" />
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        style="?android:attr/buttonBarStyle"
+        android:layout_below="@+id/send_node_pred_msg_txt"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/bt_pred_msg_1"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="15dp"
+            android:layout_marginTop="15dp"
+            android:layout_marginEnd="15dp"
+            android:layout_marginBottom="15dp"
+            android:background="@color/colorPrimary"
+            android:layout_weight="1"
+            android:text="1"
+            android:textColor="@android:color/white" />
+
+        <Button
+            android:id="@+id/bt_pred_msg_2"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="15dp"
+            android:layout_marginTop="15dp"
+            android:layout_marginEnd="15dp"
+            android:layout_marginBottom="15dp"
+            android:background="@color/colorPrimary"
+            android:layout_weight="1"
+            android:text="2"
+            android:textColor="@android:color/white" />
+
+        <Button
+            android:id="@+id/bt_pred_msg_3"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="15dp"
+            android:layout_marginTop="15dp"
+            android:layout_marginEnd="15dp"
+            android:layout_marginBottom="15dp"
+            android:background="@color/colorPrimary"
+            android:layout_weight="1"
+            android:text="3"
+            android:textColor="@android:color/white" />
+
+        <Button
+            android:id="@+id/bt_pred_msg_4"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="15dp"
+            android:layout_marginTop="15dp"
+            android:layout_marginEnd="15dp"
+            android:layout_marginBottom="15dp"
+            android:background="@color/colorPrimary"
+            android:layout_weight="1"
+            android:text="4"
+            android:textColor="@android:color/white" />
+
+        <Button
+            android:id="@+id/bt_pred_msg_5"
+            style="?android:attr/buttonBarButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="15dp"
+            android:layout_marginTop="15dp"
+            android:layout_marginEnd="15dp"
+            android:layout_marginBottom="15dp"
+            android:background="@color/colorPrimary"
+            android:layout_weight="1"
+            android:text="5"
+            android:textColor="@android:color/white" />
+
+    </LinearLayout>
 
 </RelativeLayout>

@@ -3,11 +3,11 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="tk.giesecke.painlessmesh">
 
-    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
         android:allowBackup="false"
@@ -17,7 +17,14 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         tools:ignore="GoogleAppIndexingWarning">
-
+        <activity
+            android:name=".MeshSettings"
+            android:label="@string/title_activity_mesh_credentials"
+            android:parentActivityName=".MeshActivity">
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="tk.giesecke.painlessmesh.MeshActivity" />
+        </activity>
         <activity
             android:name=".MeshActivity"
             android:label="@string/app_name"

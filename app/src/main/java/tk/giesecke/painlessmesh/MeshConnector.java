@@ -22,8 +22,8 @@ class MeshConnector {
 
     /** Action for MESH data arrived */
     static final String MESH_DATA_RECVD = "DATA";
-    /** Action for diconnect because of error */
-    static final String MESH_DISCON_ERR = "DISCON";
+    /** Action for socket error */
+    static final String MESH_SOCKET_ERR = "DISCON";
     /** Action for connection success */
     static final String MESH_CONNECTED = "CON";
     /** Action for received nodes list */
@@ -168,8 +168,8 @@ class MeshConnector {
 
                 } catch (IOException e) {
                     Log.e(DBG_TAG, "Receiving loop stopped: " + e.getMessage());
-                    sendMyBroadcast(MESH_DISCON_ERR, e.getMessage());
                     Disconnect(); //Gets stuck in a loop if we don't call this on error!
+                    sendMyBroadcast(MESH_SOCKET_ERR, e.getMessage());
                 }
             }
             receiveThreadRunning = false;
@@ -191,7 +191,7 @@ class MeshConnector {
             try {
                 this.out = server.getOutputStream();
             } catch (IOException e) {
-                Log.e(DBG_TAG, "Sending failed: " + e.getMessage());
+                Log.e(DBG_TAG, "Start SendRunnable failed: " + e.getMessage());
             }
         }
 
@@ -216,6 +216,8 @@ class MeshConnector {
                     this.out.flush();
                 } catch (IOException e) {
                     Log.e(DBG_TAG, "Sending failed: " + e.getMessage());
+                    Disconnect(); //Gets stuck in a loop if we don't call this on error!
+                    sendMyBroadcast(MESH_SOCKET_ERR, e.getMessage());
                 }
                 this.hasMessage = false;
                 this.data =  null;
