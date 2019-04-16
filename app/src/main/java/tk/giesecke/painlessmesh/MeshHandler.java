@@ -1,11 +1,14 @@
 package tk.giesecke.painlessmesh;
 
+import android.annotation.SuppressLint;
 import android.util.Log;
 
+import org.joda.time.DateTime;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.net.NetworkInterface;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -84,24 +87,35 @@ class MeshHandler {
      * @param msgToSend Message to send as "msg"
      */
     static void sendNodeMessage(long rcvNode, String msgToSend) {
-        JSONObject meshMessage = new JSONObject();
-        try {
-            meshMessage.put("dest", rcvNode);
-            meshMessage.put("from", MeshActivity.myNodeId);
-            if (rcvNode == 0) {
-                meshMessage.put("type", 8);
-            } else {
-                meshMessage.put("type", 9);
-            }
-            meshMessage.put("msg", msgToSend);
-            String msg = meshMessage.toString();
-            byte[] data = msg.getBytes();
-            if (MeshConnector.isConnected()) {
+        if (MeshConnector.isConnected()) {
+            JSONObject meshMessage = new JSONObject();
+            try {
+                String dataSet = logTime();
+
+                meshMessage.put("dest", rcvNode);
+                meshMessage.put("from", MeshActivity.myNodeId);
+                if (rcvNode == 0) {
+                    meshMessage.put("type", 8);
+                    dataSet += "Sending Broadcast:\n" + msgToSend + "\n";
+                } else {
+                    meshMessage.put("type", 9);
+                    dataSet += "Sending Single Message to :" + String.valueOf(rcvNode) + "\n" + msgToSend + "\n";
+                }
+                meshMessage.put("msg", msgToSend);
+                String msg = meshMessage.toString();
+                byte[] data = msg.getBytes();
                 MeshConnector.WriteData(data);
+                if (MeshActivity.out != null) {
+                    try {
+                        MeshActivity.out.append(dataSet);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+                Log.d(DBG_TAG, "Sending data " + msg);
+            } catch (JSONException e) {
+                Log.e(DBG_TAG, "Error sending data: " + e.getMessage());
             }
-            Log.d(DBG_TAG, "Sending data " + msg);
-        } catch (JSONException e) {
-            Log.e(DBG_TAG, "Error sending data: " + e.getMessage());
         }
     }
 
@@ -109,21 +123,30 @@ class MeshHandler {
      * Send a node sync request to the painlessMesh network
      */
     static void sendNodeSyncRequest() {
-        JSONObject nodeMessage = new JSONObject();
-        JSONArray subsArray = new JSONArray();
-        try {
-            nodeMessage.put("dest", MeshActivity.apNodeId);
-            nodeMessage.put("from", MeshActivity.myNodeId);
-            nodeMessage.put("type", 5);
-            nodeMessage.put("subs", subsArray);
-            String msg = nodeMessage.toString();
-            byte[] data = msg.getBytes();
-            if (MeshConnector.isConnected()) {
+        if (MeshConnector.isConnected()) {
+            String dataSet = logTime();
+            dataSet += "Sending NODE_SYNC_REQUEST\n";
+            JSONObject nodeMessage = new JSONObject();
+            JSONArray subsArray = new JSONArray();
+            try {
+                nodeMessage.put("dest", MeshActivity.apNodeId);
+                nodeMessage.put("from", MeshActivity.myNodeId);
+                nodeMessage.put("type", 5);
+                nodeMessage.put("subs", subsArray);
+                String msg = nodeMessage.toString();
+                byte[] data = msg.getBytes();
                 MeshConnector.WriteData(data);
+                if (MeshActivity.out != null) {
+                    try {
+                        MeshActivity.out.append(dataSet);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+                Log.d(DBG_TAG, "Sending node sync request" + msg);
+            } catch (JSONException e) {
+                Log.e(DBG_TAG, "Error sending node sync request: " + e.getMessage());
             }
-            Log.d(DBG_TAG, "Sending node sync request" + msg);
-        } catch (JSONException e) {
-            Log.e(DBG_TAG, "Error sending node sync request: " + e.getMessage());
         }
     }
 
@@ -131,22 +154,31 @@ class MeshHandler {
      * Send a node sync request to the painlessMesh network
      */
     static void sendTimeSyncRequest() {
-        JSONObject nodeMessage = new JSONObject();
-        JSONObject typeObject = new JSONObject();
-        try {
-            nodeMessage.put("dest", MeshActivity.apNodeId);
-            nodeMessage.put("from", MeshActivity.myNodeId);
-            nodeMessage.put("type", 4);
-            typeObject.put("type", 0);
-            nodeMessage.put("msg", typeObject);
-            String msg = nodeMessage.toString();
-            byte[] data = msg.getBytes();
-            if (MeshConnector.isConnected()) {
+        if (MeshConnector.isConnected()) {
+            String dataSet = logTime();
+            dataSet += "Sending TIME_SYNC_REQUEST\n";
+            JSONObject nodeMessage = new JSONObject();
+            JSONObject typeObject = new JSONObject();
+            try {
+                nodeMessage.put("dest", MeshActivity.apNodeId);
+                nodeMessage.put("from", MeshActivity.myNodeId);
+                nodeMessage.put("type", 4);
+                typeObject.put("type", 0);
+                nodeMessage.put("msg", typeObject);
+                String msg = nodeMessage.toString();
+                byte[] data = msg.getBytes();
                 MeshConnector.WriteData(data);
+                if (MeshActivity.out != null) {
+                    try {
+                        MeshActivity.out.append(dataSet);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+                Log.d(DBG_TAG, "Sending time sync request" + msg);
+            } catch (JSONException e) {
+                Log.e(DBG_TAG, "Error sending time sync request: " + e.getMessage());
             }
-            Log.d(DBG_TAG, "Sending time sync request" + msg);
-        } catch (JSONException e) {
-            Log.e(DBG_TAG, "Error sending time sync request: " + e.getMessage());
         }
     }
 
@@ -254,5 +286,19 @@ class MeshHandler {
         } catch (JSONException e) {
             return 0;
         }
+    }
+
+    /**
+     * Get time for log output
+     * @return String with date/time in format [hh:mm:ss:ms]
+     */
+    @SuppressLint("DefaultLocale")
+    private static String logTime() {
+        DateTime now = new DateTime();
+        return String.format ("[%02d:%02d:%02d:%03d] ",
+                now.getHourOfDay(),
+                now.getMinuteOfHour(),
+                now.getSecondOfMinute(),
+                now.getMillisOfSecond());
     }
 }

@@ -10,9 +10,11 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.media.MediaScannerConnection;
 import android.net.ConnectivityManager;
 import android.net.DhcpInfo;
 import android.net.NetworkInfo;
+import android.net.Uri;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
@@ -22,6 +24,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.core.app.ActivityCompat;
 
+import android.os.Environment;
 import android.os.Handler;
 import android.os.StrictMode;
 import android.preference.PreferenceManager;
@@ -31,6 +34,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.webkit.MimeTypeMap;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -39,9 +43,14 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.joda.time.DateTime;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -104,6 +113,15 @@ public class MeshActivity extends AppCompatActivity {
     /** Predefined message 5 */
     private String predMsg5;
 
+    /** Flag if log file should be written */
+    private static boolean doLogging = true;
+    /** For log file of data */
+    static BufferedWriter out = null;
+    /** Path to storage folder */
+    private static String sdcardPath;
+    /** Log file URI */
+    private String logFilePath;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -126,11 +144,12 @@ public class MeshActivity extends AppCompatActivity {
                         timeForNodeReq = true;
                     }
                 }
-                handler.postDelayed(this, 5000);
+                handler.postDelayed(this, 10000);
             }
-        }, 5000);
+        }, 10000);
     }
 
+    @SuppressLint({"DefaultLocale", "ClickableViewAccessibility"})
     @Override
     public void onResume() {
         // Get pointer to shared preferences
@@ -158,6 +177,10 @@ public class MeshActivity extends AppCompatActivity {
             arrPerm.add(Manifest.permission.ACCESS_COARSE_LOCATION);
         }
 
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            arrPerm.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        }
+
         if(!arrPerm.isEmpty()) {
             String[] permissions = new String[arrPerm.size()];
             permissions = arrPerm.toArray(permissions);
@@ -168,6 +191,14 @@ public class MeshActivity extends AppCompatActivity {
         // ThreadPolicy to get permission to access connectivity
         StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
         StrictMode.setThreadPolicy(policy);
+
+        // Enable sharing of files
+        // VmPolicy to get permission to share files
+        StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
+        StrictMode.setVmPolicy(builder.build());
+
+        // Get path to SDCard
+        sdcardPath = Environment.getExternalStorageDirectory().getPath() + "/painlessMesh/";
 
         // Get the wifi manager
         wifiMgr = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
@@ -265,6 +296,7 @@ public class MeshActivity extends AppCompatActivity {
         if (MeshConnector.isConnected()) {
             MeshConnector.Disconnect();
         }
+        stopLogging();
         // unregister the broadcast receiver
         unregisterReceiver(localBroadcastReceiver);
     }
@@ -293,6 +325,7 @@ public class MeshActivity extends AppCompatActivity {
                 if (MeshConnector.isConnected()) {
                     MeshConnector.Disconnect();
                 }
+                stopLogging();
                 finish();
                 break;
             case R.id.action_connect:
@@ -446,6 +479,7 @@ public class MeshActivity extends AppCompatActivity {
             }
         }
         tv_mesh_conn.setText(getResources().getString(R.string.mesh_disconnected));
+        stopLogging();
     }
 
     /**
@@ -546,17 +580,39 @@ public class MeshActivity extends AppCompatActivity {
      * share resources (email/gmail/sms/facebook/...)
      */
     private void handleShareRequest() {
-        Intent sharingIntent = new Intent(android.content.Intent.ACTION_SEND);
-        sharingIntent.setType("text/plain");// Plain format text
+        if (doLogging) {
+            // Still logging, cannot share logs yet
+            showToast(getString(R.string.error_share), Toast.LENGTH_SHORT);
+        } else {
+            Intent sharingIntent = new Intent(android.content.Intent.ACTION_SEND);
+            sharingIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_DOCUMENT);
 
-        sharingIntent.putExtra( android.content.Intent.EXTRA_SUBJECT, meshName);
-        StringBuilder sharedMessage = new StringBuilder(meshName + "\nKnown nodes:\n");
-        for (int idx=0; idx < MeshHandler.nodesList.size(); idx++) {
-            sharedMessage.append(String.valueOf(MeshHandler.nodesList.get(idx))).append("\n");
+            MimeTypeMap map = MimeTypeMap.getSingleton();
+            String ext = MimeTypeMap.getFileExtensionFromUrl(logFilePath);
+            String type = map.getMimeTypeFromExtension(ext);
+
+            File logFile = new File(logFilePath);
+            Uri data = Uri.fromFile(logFile);
+//            String AUTHORITY=
+//                    BuildConfig.APPLICATION_ID+".provider";
+//
+//            Uri data= FileProvider.getUriForFile(this, AUTHORITY, logFile);
+
+            sharingIntent.setDataAndType(data, type);
+            sharingIntent.putExtra(Intent.EXTRA_STREAM, data);
+            // TODO find out why the email address would be the filename if we do not set it here to ""
+            sharingIntent.putExtra(Intent.EXTRA_EMAIL, "receiver@google.com");
+//        sharingIntent.setType("text/plain");// Plain format text
+
+            sharingIntent.putExtra( android.content.Intent.EXTRA_SUBJECT, meshName);
+//            StringBuilder sharedMessage = new StringBuilder(meshName + "\nKnown nodes:\n");
+//            for (int idx=0; idx < MeshHandler.nodesList.size(); idx++) {
+//                sharedMessage.append(String.valueOf(MeshHandler.nodesList.get(idx))).append("\n");
+//            }
+//        sharedMessage.append(tv_mesh_msgs.getText().toString());
+//            sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, sharedMessage.toString());
+            startActivity(Intent.createChooser(sharingIntent, "Share collected messages using"));
         }
-        sharedMessage.append(tv_mesh_msgs.getText().toString());
-        sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, sharedMessage.toString());
-        startActivity(Intent.createChooser(sharingIntent, "Share collected messages using"));
     }
 
     /**
@@ -595,6 +651,7 @@ public class MeshActivity extends AppCompatActivity {
      * - Mesh network error events
      */
     private final BroadcastReceiver localBroadcastReceiver = new BroadcastReceiver() {
+        @SuppressLint("DefaultLocale")
         @Override
         public void onReceive(final Context context, Intent intent) {
             // Connection change
@@ -643,8 +700,11 @@ public class MeshActivity extends AppCompatActivity {
                                     // Set flag that we are connected
                                     isConnected = true;
 
+                                    startLogging();
+
                                     // Connected to the Mesh network, start network task now
                                     MeshConnector.Connect(meshIP, meshPort, getApplicationContext());
+
                                 });
                             } else {
                                 List<WifiConfiguration> availAPs = wifiMgr.getConfiguredNetworks();
@@ -663,6 +723,15 @@ public class MeshActivity extends AppCompatActivity {
                     }
                 }
             }
+
+            String dataSet;
+            DateTime now = new DateTime();
+            dataSet = String.format ("[%02d:%02d:%02d:%03d] ",
+                    now.getHourOfDay(),
+                    now.getMinuteOfHour(),
+                    now.getSecondOfMinute(),
+                    now.getMillisOfSecond());
+
             // Mesh events
             if (MeshConnector.MESH_DATA_RECVD.equals(intentAction)) {
                 String rcvdMsg = intent.getStringExtra("msg");
@@ -674,15 +743,20 @@ public class MeshActivity extends AppCompatActivity {
                     switch (msgType) {
                         case 3: // TIME_DELAY
                             tv_mesh_err.setText(getString(R.string.mesh_event_time_delay));
+                            dataSet += "Received TIME_DELAY\n";
                             break;
                         case 4: // TIME_SYNC
                             tv_mesh_err.setText(getString(R.string.mesh_event_time_sync));
+                            dataSet += "Received TIME_SYNC\n";
                             break;
                         case 5: // NODE_SYNC_REQUEST
-                            tv_mesh_err.setText(getString(R.string.mesh_event_node_req));
                         case 6: // NODE_SYNC_REPY
                             if (msgType != 5) {
                                 tv_mesh_err.setText(getString(R.string.mesh_event_node_reply));
+                                dataSet += "Received NODE_SYNC_REPLY\n";
+                            } else {
+                                tv_mesh_err.setText(getString(R.string.mesh_event_node_req));
+                                dataSet += "Received NODE_SYNC_REQUEST\n";
                             }
                             // Generate known nodes list
                             final String nodesListString = rcvdMsg;
@@ -690,34 +764,43 @@ public class MeshActivity extends AppCompatActivity {
                             handler.post(() -> MeshHandler.generateNodeList(nodesListString));
                             break;
                         case 7: // CONTROL ==> deprecated
+                            dataSet += "Received CONTROL\n";
                             break;
                         case 8: // BROADCAST
+                            dataSet += "Broadcast:\n" + rcvdJSON.getString("msg") + "\n";
                             if (filterId != 0) {
                                 if (fromNode != filterId) {
                                     return;
                                 }
                             }
-                            oldText = tv_mesh_msgs.getText().toString();
-                            oldText += "BC from " + String.valueOf(fromNode) + "\n\t" + rcvdJSON.getString("msg") + "\n";
-                            tv_mesh_msgs.setText(oldText);
+                            oldText = "BC from " + String.valueOf(fromNode) + "\n\t" + rcvdJSON.getString("msg") + "\n";
+                            tv_mesh_msgs.append(oldText);
                             break;
                         case 9: // SINGLE
+                            dataSet += "Single Msg:\n" + rcvdJSON.getString("msg") + "\n";
                             if (filterId != 0) {
                                 if (fromNode != filterId) {
                                     return;
                                 }
                             }
-                            oldText = tv_mesh_msgs.getText().toString();
-                            oldText += "SM from " + String.valueOf(fromNode) + "\n\t" + rcvdJSON.getString("msg") + "\n";
-                            tv_mesh_msgs.setText(oldText);
+                            oldText = "SM from " + String.valueOf(fromNode) + "\n\t" + rcvdJSON.getString("msg") + "\n";
+                            tv_mesh_msgs.append(oldText);
                             break;
                     }
                 } catch (JSONException e) {
                     Log.d(DBG_TAG, "Received message is not a JSON Object!");
-                    oldText = tv_mesh_msgs.getText().toString();
-                    oldText += "E: " + intent.getStringExtra("msg") + "\n";
-                    tv_mesh_msgs.setText(oldText);
+                    oldText = "E: " + intent.getStringExtra("msg") + "\n";
+                    tv_mesh_msgs.append(oldText);
+                    dataSet += "ERROR INVALID DATA:\n" + intent.getStringExtra("msg") + "\n";
                 }
+                if (out != null) {
+                    try {
+                        out.append(dataSet);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+
                 scrollViewDown();
             } else if (MeshConnector.MESH_SOCKET_ERR.equals(intentAction)) {
                 if (MeshHandler.nodesList != null) {
@@ -731,12 +814,105 @@ public class MeshActivity extends AppCompatActivity {
             } else if (MeshConnector.MESH_CONNECTED.equals(intentAction)) {
                 userDisConRequest = false;
             } else if (MeshConnector.MESH_NODES.equals(intentAction)) {
-                String oldText;
-                oldText = tv_mesh_msgs.getText().toString();
-                oldText += intent.getStringExtra("msg") + "\n";
-                tv_mesh_msgs.setText(oldText);
+                String oldText = intent.getStringExtra("msg") + "\n";
+                tv_mesh_msgs.append(oldText);
                 scrollViewDown();
+                dataSet += intent.getStringExtra("msg") + "\n";
+                if (out != null) {
+                    try {
+                        out.append(dataSet);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+            String oldText = tv_mesh_msgs.getText().toString();
+            // Check if the text is getting too long
+            if (oldText.length() > 16535) {
+                // Quite long, remove the first 20 lines  from the text
+                int indexOfCr = 0;
+                for (int lines=0; lines < 20; lines++) {
+                    indexOfCr = oldText.indexOf("\n", indexOfCr+1);
+                }
+                oldText = oldText.substring(indexOfCr+1);
+                tv_mesh_msgs.setText(oldText);
             }
         }
     };
+
+    @SuppressLint("DefaultLocale")
+    private void startLogging() {
+        if (doLogging) {
+            stopLogging();
+        }
+
+        DateTime now = new DateTime();
+        String logTitle = String.format ("Log created: %02d/%02d/%02d %02d:%02d\n\n", now.getYear()-2000, now.getMonthOfYear(),
+                now.getDayOfMonth(), now.getHourOfDay(), now.getMinuteOfHour());
+        /* Name of the log */
+        String logName = "meshLogFile.txt";
+
+        // Create folder for this data set
+        try {
+            File appDir = new File(sdcardPath);
+            boolean exists = appDir.exists();
+            if (!exists) {
+                boolean result = appDir.mkdirs();
+                if (!result) {
+                    Log.d(DBG_TAG, "Failed to create log folder");
+                }
+            }
+        } catch (Exception exc) {
+            Log.e(DBG_TAG, "Failed to create log folder: " + exc);
+        }
+
+        // If file is still open for writing, close it first
+        if (out != null) {
+            try {
+                out.flush();
+                out.close();
+            } catch (IOException exc) {
+                Log.e(DBG_TAG, "Failed to close log file: " + exc);
+            }
+        }
+
+        // TODO find a better solution to handle the log files
+        // For now delete the old log file to avoid getting a too large file
+        boolean result = new File(sdcardPath + logName).exists();
+        if (result) {
+            result = new File(sdcardPath + logName).delete();
+            if (!result) {
+                Log.d(DBG_TAG,"Failed to delete the old logfile");
+            }
+        }
+
+        try {
+            logFilePath = sdcardPath + logName;
+            FileWriter newFile = new FileWriter(logFilePath);
+            out = new BufferedWriter(newFile);
+            out.append(logTitle);
+        } catch (IOException exc) {
+            Log.e(DBG_TAG, "Failed to open log file for writing: " + exc);
+        }
+
+        doLogging = true;
+    }
+
+    private void stopLogging() {
+        if (doLogging) {
+            if (out != null) {
+                try {
+                    out.flush();
+                    out.close();
+                } catch (IOException exc) {
+                    Log.e(DBG_TAG, "Failed to close log file: " + exc);
+                }
+                out = null;
+            }
+            doLogging = false;
+            String[] toBeScannedStr = new String[1];
+            toBeScannedStr[0] = sdcardPath + "*";
+            MediaScannerConnection.scanFile(this, toBeScannedStr, null, (path, uri) -> System.out.println("SCAN COMPLETED: " + path));
+        }
+    }
 }

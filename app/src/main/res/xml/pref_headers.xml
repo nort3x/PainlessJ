@@ -3,6 +3,14 @@
     <!-- These settings headers are only used on tablets. -->
 
     <header
+        android:id="@+id/header_version"
+        android:icon="@drawable/ic_prefs_info"
+        android:selectable="false"
+        android:persistent="false"
+        android:title="@string/pref_header_version"
+        android:summary="@string/versionName"/>
+
+    <header
         android:fragment="tk.giesecke.painlessmesh.MeshSettings$MeshCredentialsFragment"
         android:icon="@drawable/ic_prefs_credentials"
         android:title="@string/pref_header_credentials" />
@@ -15,6 +23,7 @@
     <header
         android:fragment="tk.giesecke.painlessmesh.MeshSettings$ClearPreferencesFragment"
         android:icon="@drawable/ic_prefs_clear"
-        android:title="@string/pref_header_clear_prefs" />
+        android:title="@string/pref_header_clear_prefs"
+        android:summary="@string/pref_header_clear_prefs_summary"/>
 
 </preference-headers>

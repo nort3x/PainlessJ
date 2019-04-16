@@ -93,8 +93,8 @@
         android:id="@+id/sv_msgs"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_above="@+id/ll_send_buttons"
         android:layout_below="@+id/tv_mesh_last_event"
+        android:layout_toStartOf="@+id/ll_send_buttons"
         android:background="@color/colorDialog_Background"
         android:fadeScrollbars="false">
 
@@ -112,10 +112,12 @@
 
     <LinearLayout
         android:id="@+id/ll_send_buttons"
-        android:layout_width="match_parent"
-        android:layout_height="50dp"
+        android:layout_width="50dp"
+        android:layout_height="match_parent"
+        android:layout_below="@+id/tv_mesh_last_event"
+        android:layout_alignParentEnd="true"
         android:layout_alignParentBottom="true"
-        android:orientation="horizontal">
+        android:orientation="vertical">
 
         <Button
             android:id="@+id/bt_bc_pred_msg_1"
