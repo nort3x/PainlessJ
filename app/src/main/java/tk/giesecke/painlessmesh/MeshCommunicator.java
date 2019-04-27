@@ -16,9 +16,9 @@ import java.nio.charset.StandardCharsets;
  * Class to handle the TCP connection and communication
  * with the mesh network
  */
-class MeshConnector {
+class MeshCommunicator {
     /** Debug tag */
-    private static final String DBG_TAG = "MeshConnector";
+    private static final String DBG_TAG = "MeshCommunicator";
 
     /** Action for MESH data arrived */
     static final String MESH_DATA_RECVD = "DATA";
@@ -28,6 +28,10 @@ class MeshConnector {
     static final String MESH_CONNECTED = "CON";
     /** Action for received nodes list */
     static final String MESH_NODES = "NODE";
+    /** Action for ready for announcing OTA */
+    static final String MESH_OTA = "OTA_START";
+    /** Action for OTA block request */
+    static final String MESH_OTA_REQ = "OTA_REQ";
 
     /** Flag if the TCP receiving thread was started */
     private static boolean receiveThreadRunning = false;
@@ -51,7 +55,7 @@ class MeshConnector {
     private static Context appContext;
 
     /**
-     * Returns true if MeshConnector is connected, else false
+     * Returns true if MeshCommunicator is connected, else false
      * @return Boolean
      */
     static boolean isConnected() {

@@ -1,6 +1,7 @@
 package tk.giesecke.painlessmesh;
 
 import android.annotation.SuppressLint;
+import android.util.Base64;
 import android.util.Log;
 
 import org.joda.time.DateTime;
@@ -8,22 +9,51 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.RandomAccessFile;
+import java.math.BigInteger;
 import java.net.NetworkInterface;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 /**
- * Class if handling functions to manage mesh network events and tasks
+ * Class with handling functions to manage mesh network events and tasks
+ * Includes some general utilities as well
  */
-class MeshHandler {
+public class MeshHandler extends MeshActivity {
 
     /** Debug tag */
     private static final String DBG_TAG = "MeshHandler";
 
     // List of currently known nodes
     static ArrayList<Long> nodesList;
+
+    /** Action for onActivityResult selecting update file */
+    static final int SELECT_FILE_REQ = 1;
+
+    /** Path to OTA file as String */
+    static String otaPath;
+    /** Name of file for OTA */
+    static File otaFile = null;
+    /** md5 Checksum of the OTA file */
+    static String otaMD5;
+    /** File size */
+    static long otaFileSize;
+    /** Size of one block */
+    private static final int otaBlockSize = 1024;
+    /** Number of blocks for the update */
+    private static long numOfBlocks = 0;
+    /** Selected HW type */
+    private static String otaHWtype;
+    /** Selected node type */
+    private static String otaNodeType;
 
     /**
      * Returns mesh nodeID created from given MAC address.
@@ -32,7 +62,7 @@ class MeshHandler {
      */
     static long createMeshID(String macAddress) {
         long calcNodeId = -1;
-        String macAddressParts[] = macAddress.split(":");
+        String[] macAddressParts = macAddress.split(":");
         if (macAddressParts.length == 6) {
             try {
                 long number = Long.valueOf(macAddressParts[2],16);
@@ -87,7 +117,7 @@ class MeshHandler {
      * @param msgToSend Message to send as "msg"
      */
     static void sendNodeMessage(long rcvNode, String msgToSend) {
-        if (MeshConnector.isConnected()) {
+        if (MeshCommunicator.isConnected()) {
             JSONObject meshMessage = new JSONObject();
             try {
                 String dataSet = logTime();
@@ -99,12 +129,12 @@ class MeshHandler {
                     dataSet += "Sending Broadcast:\n" + msgToSend + "\n";
                 } else {
                     meshMessage.put("type", 9);
-                    dataSet += "Sending Single Message to :" + String.valueOf(rcvNode) + "\n" + msgToSend + "\n";
+                    dataSet += "Sending Single Message to :" + rcvNode + "\n" + msgToSend + "\n";
                 }
                 meshMessage.put("msg", msgToSend);
                 String msg = meshMessage.toString();
                 byte[] data = msg.getBytes();
-                MeshConnector.WriteData(data);
+                MeshCommunicator.WriteData(data);
                 if (MeshActivity.out != null) {
                     try {
                         MeshActivity.out.append(dataSet);
@@ -123,7 +153,7 @@ class MeshHandler {
      * Send a node sync request to the painlessMesh network
      */
     static void sendNodeSyncRequest() {
-        if (MeshConnector.isConnected()) {
+        if (MeshCommunicator.isConnected()) {
             String dataSet = logTime();
             dataSet += "Sending NODE_SYNC_REQUEST\n";
             JSONObject nodeMessage = new JSONObject();
@@ -135,7 +165,7 @@ class MeshHandler {
                 nodeMessage.put("subs", subsArray);
                 String msg = nodeMessage.toString();
                 byte[] data = msg.getBytes();
-                MeshConnector.WriteData(data);
+                MeshCommunicator.WriteData(data);
                 if (MeshActivity.out != null) {
                     try {
                         MeshActivity.out.append(dataSet);
@@ -154,7 +184,7 @@ class MeshHandler {
      * Send a node sync request to the painlessMesh network
      */
     static void sendTimeSyncRequest() {
-        if (MeshConnector.isConnected()) {
+        if (MeshCommunicator.isConnected()) {
             String dataSet = logTime();
             dataSet += "Sending TIME_SYNC_REQUEST\n";
             JSONObject nodeMessage = new JSONObject();
@@ -167,7 +197,7 @@ class MeshHandler {
                 nodeMessage.put("msg", typeObject);
                 String msg = nodeMessage.toString();
                 byte[] data = msg.getBytes();
-                MeshConnector.WriteData(data);
+                MeshCommunicator.WriteData(data);
                 if (MeshActivity.out != null) {
                     try {
                         MeshActivity.out.append(dataSet);
@@ -179,6 +209,78 @@ class MeshHandler {
             } catch (JSONException e) {
                 Log.e(DBG_TAG, "Error sending time sync request: " + e.getMessage());
             }
+        }
+    }
+
+    /**
+     * Prepare OTA file advertisment and send it as broadcast
+     * @param hwType 0 == ESP32, 1 == ESP8266
+     * @param nodeType String indicating the target node type
+     */
+    static void sendOTAAdvertise(int hwType, String nodeType, boolean forcedUpdate) {
+        numOfBlocks = (otaFileSize/otaBlockSize);
+        long lastBlockSize = otaFileSize - (numOfBlocks * otaBlockSize);
+        // If last block size is not 0, then we need to report 1 more block!
+        if (lastBlockSize != 0) {
+            numOfBlocks += 1;
+        }
+        Log.d(DBG_TAG, "Filesize = " + otaFileSize
+                + " # of blocks = " + numOfBlocks
+                + " last block size = " + lastBlockSize);
+        JSONObject otaAdvert = new JSONObject();
+        try {
+            otaHWtype = hwType == 0 ? "ESP32" : "ESP8266";
+            otaNodeType = nodeType;
+            otaAdvert.put("plugin", "ota");
+            otaAdvert.put("type", "version");
+            otaAdvert.put("md5", otaMD5);
+            otaAdvert.put("hardware", otaHWtype);
+            otaAdvert.put("nodeType", otaNodeType);
+            otaAdvert.put("noPart", numOfBlocks);
+            otaAdvert.put("forced", forcedUpdate);
+            // Send OTA advertisment
+            sendNodeMessage(0, otaAdvert.toString());
+        } catch (JSONException e) {
+            Log.e(DBG_TAG, "Error sending OTA advertise: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Send the requested block of the OTA file
+     * @param rcvNode ID of the requesting node
+     * @param partNo Requested block of the OTA file
+     */
+    static void sendOtaBlock(long rcvNode, long partNo) {
+        // TODO do we need to queue update requests? Network might get very busy if we update several nodes at the same time
+
+        JSONObject otaBlock = new JSONObject();
+        RandomAccessFile otaFile;
+        try {
+            otaFile = new RandomAccessFile(otaPath, "r");
+            otaFile.seek(partNo * otaBlockSize);
+            int index = (int)(partNo * otaBlockSize);
+            if (partNo != 0) {
+                Log.d(DBG_TAG, "Request for part No " + partNo);
+            }
+            otaFile.seek(index);
+            byte[] buffer = new byte[otaBlockSize];
+            int size = otaFile.read(buffer, 0, otaBlockSize);
+            String b64Buffer = Base64.encodeToString(buffer, 0, size, Base64.NO_WRAP);
+            Log.d(DBG_TAG, "Sending block " + partNo + " with decoded size " + size + " encoded size " + b64Buffer.length());
+
+            otaBlock.put("plugin", "ota");
+            otaBlock.put("type", "data");
+            otaBlock.put("md5", otaMD5);
+            otaBlock.put("hardware", otaHWtype);
+            otaBlock.put("nodeType", otaNodeType);
+            otaBlock.put("noPart", numOfBlocks);
+            otaBlock.put("partNo", partNo);
+            otaBlock.put("data", b64Buffer);
+            otaBlock.put("dataLength", b64Buffer.length());
+            // Send OTA data block
+            sendNodeMessage(rcvNode, otaBlock.toString());
+        } catch (IOException | JSONException e) {
+            Log.e(DBG_TAG, "Error sending OTA block " + partNo + " => " + e.getMessage());
         }
     }
 
@@ -199,8 +301,6 @@ class MeshHandler {
         try {
             JSONObject routingTop = new JSONObject(routingInfo);
             long from = routingTop.getLong("from");
-            // TODO does it make sense to add our own nodeID? Cannot send to ourselfs!
-//            nodesList.add(MeshActivity.myNodeId);
             nodesList.add(from);
             getSubsNodeId(routingTop);
         } catch (JSONException e) {
@@ -213,9 +313,9 @@ class MeshHandler {
         if (!oldEqualNew || !newEqualOld) {
             StringBuilder nodesListStr = new StringBuilder("Nodeslist changed\n");
             for (int idx=0; idx < nodesList.size(); idx++) {
-                nodesListStr.append(String.valueOf(nodesList.get(idx))).append("\n");
+                nodesListStr.append(nodesList.get(idx)).append("\n");
             }
-            MeshConnector.sendMyBroadcast(MeshConnector.MESH_NODES, nodesListStr.toString());
+            MeshCommunicator.sendMyBroadcast(MeshCommunicator.MESH_NODES, nodesListStr.toString());
         }
     }
 
@@ -300,5 +400,49 @@ class MeshHandler {
                 now.getMinuteOfHour(),
                 now.getSecondOfMinute(),
                 now.getMillisOfSecond());
+    }
+
+    /**
+     * Calculate the md5 checksum of a file
+     * @param updateFile File the checksum should be calculated from
+     */
+    public static String calculateMD5(File updateFile) {
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
+            Log.e(DBG_TAG, "Exception while getting digest", e);
+            return null;
+        }
+
+        InputStream is;
+        try {
+            is = new FileInputStream(updateFile);
+        } catch (FileNotFoundException e) {
+            Log.e(DBG_TAG, "Exception while getting FileInputStream", e);
+            return null;
+        }
+
+        byte[] buffer = new byte[8192];
+        int read;
+        try {
+            while ((read = is.read(buffer)) > 0) {
+                digest.update(buffer, 0, read);
+            }
+            byte[] md5sum = digest.digest();
+            BigInteger bigInt = new BigInteger(1, md5sum);
+            String output = bigInt.toString(16);
+            // Fill to 32 chars
+            output = String.format("%32s", output).replace(' ', '0');
+            return output;
+        } catch (IOException e) {
+            throw new RuntimeException("Unable to process file for MD5", e);
+        } finally {
+            try {
+                is.close();
+            } catch (IOException e) {
+                Log.e(DBG_TAG, "Exception on closing MD5 input stream", e);
+            }
+        }
     }
 }

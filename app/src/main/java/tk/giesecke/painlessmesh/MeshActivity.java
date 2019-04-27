@@ -2,6 +2,7 @@ package tk.giesecke.painlessmesh;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -28,6 +29,7 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.StrictMode;
 import android.preference.PreferenceManager;
+import android.provider.DocumentsContract;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
@@ -39,6 +41,8 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -86,9 +90,9 @@ public class MeshActivity extends AppCompatActivity {
     private static String meshIP;
 
     /** My Mesh node id */
-    public static long myNodeId = 0;
+    static long myNodeId = 0;
     /** The node id we connected to */
-    public static long apNodeId = 0;
+    static long apNodeId = 0;
 
     /** Filter for incoming messages */
     private long filterId = 0;
@@ -122,6 +126,11 @@ public class MeshActivity extends AppCompatActivity {
     /** Log file URI */
     private String logFilePath;
 
+    /** OTA dialog file name */
+    private TextView tvOtaFile;
+    /** OTA dialog md5 */
+    private TextView tvOtaMd5;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -135,7 +144,7 @@ public class MeshActivity extends AppCompatActivity {
         handler.postDelayed(new Runnable(){
             boolean timeForNodeReq = true;
             public void run(){
-                if (MeshConnector.isConnected()) {
+                if (MeshCommunicator.isConnected()) {
                     if (timeForNodeReq) {
                         MeshHandler.sendNodeSyncRequest();
                         timeForNodeReq = false;
@@ -181,6 +190,10 @@ public class MeshActivity extends AppCompatActivity {
             arrPerm.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
         }
 
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            arrPerm.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+        }
+
         if(!arrPerm.isEmpty()) {
             String[] permissions = new String[arrPerm.size()];
             permissions = arrPerm.toArray(permissions);
@@ -224,7 +237,7 @@ public class MeshActivity extends AppCompatActivity {
         Button bt_to_set = findViewById(R.id.bt_bc_pred_msg_1);
         // Set onClickListener
         bt_to_set.setOnClickListener(v12 -> {
-            if (MeshConnector.isConnected()) {
+            if (MeshCommunicator.isConnected()) {
                 MeshHandler.sendNodeMessage(0,predMsg1);
             }
         });
@@ -232,7 +245,7 @@ public class MeshActivity extends AppCompatActivity {
         bt_to_set = findViewById(R.id.bt_bc_pred_msg_2);
         // Set onClickListener
         bt_to_set.setOnClickListener(v12 -> {
-            if (MeshConnector.isConnected()) {
+            if (MeshCommunicator.isConnected()) {
                 MeshHandler.sendNodeMessage(0,predMsg2);
             }
         });
@@ -240,7 +253,7 @@ public class MeshActivity extends AppCompatActivity {
         bt_to_set = findViewById(R.id.bt_bc_pred_msg_3);
         // Set onClickListener
         bt_to_set.setOnClickListener(v12 -> {
-            if (MeshConnector.isConnected()) {
+            if (MeshCommunicator.isConnected()) {
                 MeshHandler.sendNodeMessage(0,predMsg3);
             }
         });
@@ -248,7 +261,7 @@ public class MeshActivity extends AppCompatActivity {
         bt_to_set = findViewById(R.id.bt_bc_pred_msg_4);
         // Set onClickListener
         bt_to_set.setOnClickListener(v12 -> {
-            if (MeshConnector.isConnected()) {
+            if (MeshCommunicator.isConnected()) {
                 MeshHandler.sendNodeMessage(0,predMsg4);
             }
         });
@@ -256,7 +269,7 @@ public class MeshActivity extends AppCompatActivity {
         bt_to_set = findViewById(R.id.bt_bc_pred_msg_5);
         // Set onClickListener
         bt_to_set.setOnClickListener(v12 -> {
-            if (MeshConnector.isConnected()) {
+            if (MeshCommunicator.isConnected()) {
                 MeshHandler.sendNodeMessage(0,predMsg5);
             }
         });
@@ -264,7 +277,7 @@ public class MeshActivity extends AppCompatActivity {
         bt_to_set = findViewById(R.id.bt_time_sync);
         // Set onClickListener
         bt_to_set.setOnClickListener(v12 -> {
-            if (MeshConnector.isConnected()) {
+            if (MeshCommunicator.isConnected()) {
                 MeshHandler.sendTimeSyncRequest();
             }
         });
@@ -272,17 +285,19 @@ public class MeshActivity extends AppCompatActivity {
         bt_to_set = findViewById(R.id.bt_node_sync);
         // Set onClickListener
         bt_to_set.setOnClickListener(v12 -> {
-            if (MeshConnector.isConnected()) {
+            if (MeshCommunicator.isConnected()) {
                 MeshHandler.sendNodeSyncRequest();
             }
         });
 
         // Register Mesh events
         IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(MeshConnector.MESH_DATA_RECVD);
-        intentFilter.addAction(MeshConnector.MESH_SOCKET_ERR);
-        intentFilter.addAction(MeshConnector.MESH_CONNECTED);
-        intentFilter.addAction(MeshConnector.MESH_NODES);
+        intentFilter.addAction(MeshCommunicator.MESH_DATA_RECVD);
+        intentFilter.addAction(MeshCommunicator.MESH_SOCKET_ERR);
+        intentFilter.addAction(MeshCommunicator.MESH_CONNECTED);
+        intentFilter.addAction(MeshCommunicator.MESH_NODES);
+        intentFilter.addAction(MeshCommunicator.MESH_OTA);
+        intentFilter.addAction(MeshCommunicator.MESH_OTA_REQ);
         // Register network change events
         intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
         // Register receiver
@@ -293,8 +308,8 @@ public class MeshActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (MeshConnector.isConnected()) {
-            MeshConnector.Disconnect();
+        if (MeshCommunicator.isConnected()) {
+            MeshCommunicator.Disconnect();
         }
         stopLogging();
         // unregister the broadcast receiver
@@ -315,15 +330,15 @@ public class MeshActivity extends AppCompatActivity {
 
         switch (selItem) {
             case R.id.action_settings:
-                if (MeshConnector.isConnected()) {
+                if (MeshCommunicator.isConnected()) {
                     stopConnection();
                 }
                 final Intent intent = new Intent(this, MeshSettings.class);
                 startActivity(intent);
                 break;
             case R.id.home:
-                if (MeshConnector.isConnected()) {
-                    MeshConnector.Disconnect();
+                if (MeshCommunicator.isConnected()) {
+                    MeshCommunicator.Disconnect();
                 }
                 stopLogging();
                 finish();
@@ -333,14 +348,16 @@ public class MeshActivity extends AppCompatActivity {
                 handleConnection();
                 break;
             case R.id.action_send:
-                if (MeshConnector.isConnected()) {
+                if (MeshCommunicator.isConnected()) {
                     selectNodesForSending();
                 } else {
                     showToast(getString(R.string.mesh_no_connection), Toast.LENGTH_SHORT);
                 }
                 break;
+            case R.id.action_ota:
+                showOtaInfoDialog();
+                break;
         }
-
         return super.onOptionsItemSelected(item);
     }
 
@@ -348,7 +365,7 @@ public class MeshActivity extends AppCompatActivity {
      * Apply or remove filter to show only messages from a specific node
      */
     private void handleFilterRequest(){
-        if (MeshConnector.isConnected()) {
+        if (MeshCommunicator.isConnected()) {
             ArrayList<String> nodesListStr = new ArrayList<>();
 
             ArrayList<Long> tempNodesList = new ArrayList<>(MeshHandler.nodesList);
@@ -449,8 +466,8 @@ public class MeshActivity extends AppCompatActivity {
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
         mi_mesh_conn_bt.setIcon(R.drawable.ic_menu_connect);
 
-        if (MeshConnector.isConnected()) {
-            MeshConnector.Disconnect();
+        if (MeshCommunicator.isConnected()) {
+            MeshCommunicator.Disconnect();
         }
         isConnected = false;
         tryToConnect = false;
@@ -593,26 +610,75 @@ public class MeshActivity extends AppCompatActivity {
 
             File logFile = new File(logFilePath);
             Uri data = Uri.fromFile(logFile);
-//            String AUTHORITY=
-//                    BuildConfig.APPLICATION_ID+".provider";
-//
-//            Uri data= FileProvider.getUriForFile(this, AUTHORITY, logFile);
 
             sharingIntent.setDataAndType(data, type);
             sharingIntent.putExtra(Intent.EXTRA_STREAM, data);
             // TODO find out why the email address would be the filename if we do not set it here to ""
             sharingIntent.putExtra(Intent.EXTRA_EMAIL, "receiver@google.com");
-//        sharingIntent.setType("text/plain");// Plain format text
 
             sharingIntent.putExtra( android.content.Intent.EXTRA_SUBJECT, meshName);
-//            StringBuilder sharedMessage = new StringBuilder(meshName + "\nKnown nodes:\n");
-//            for (int idx=0; idx < MeshHandler.nodesList.size(); idx++) {
-//                sharedMessage.append(String.valueOf(MeshHandler.nodesList.get(idx))).append("\n");
-//            }
-//        sharedMessage.append(tv_mesh_msgs.getText().toString());
-//            sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, sharedMessage.toString());
+
             startActivity(Intent.createChooser(sharingIntent, "Share collected messages using"));
         }
+    }
+
+    /**
+     * Show dialog to select OTA file and node type and initiate advertise of OTA
+     */
+    private void showOtaInfoDialog() {
+        // Open dialog box to enter required info and then advertise the OTA
+        // Get dialog layout
+        LayoutInflater li = LayoutInflater.from(this);
+        @SuppressLint("InflateParams") View otaPrepareView = li.inflate(R.layout.ota_advertise, null);
+
+        AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(
+                this);
+
+        tvOtaFile = otaPrepareView.findViewById(R.id.tv_ota_file);
+        tvOtaFile.setText("");
+
+        tvOtaMd5 = otaPrepareView.findViewById(R.id.tv_ota_md5);
+        tvOtaMd5.setText("");
+
+        final EditText etNodeType = otaPrepareView.findViewById(R.id.et_node_type);
+
+        final RadioGroup rgHwSelection = otaPrepareView.findViewById(R.id.rg_hardware);
+        final RadioButton rbForceUpdate = otaPrepareView.findViewById(R.id.rb_force);
+
+        final Button selFileButton = otaPrepareView.findViewById(R.id.bt_select_file);
+
+        // set prompts.xml to alert dialog builder
+        alertDialogBuilder.setView(otaPrepareView)
+                .setNegativeButton(getString(android.R.string.cancel),
+                        (dialog, which) -> {
+                            // Do something here if you want
+                            dialog.dismiss();
+                        })
+                .setPositiveButton(getString(R.string.ota_advertise),
+                        (dialog, which) -> {
+                            String otaFileName = tvOtaFile.getText().toString();
+                            if (otaFileName.isEmpty()) {
+                                showToast(getString(R.string.ota_miss_file), Toast.LENGTH_SHORT);
+                                return;
+                            }
+                            String nodeType = etNodeType.getText().toString();
+                            if (nodeType.isEmpty()) {
+                                showToast(getString(R.string.ota_miss_type), Toast.LENGTH_SHORT);
+                                return;
+                            }
+                            int hwType = (rgHwSelection.getCheckedRadioButtonId() == R.id.rb_esp32) ? 0 : 1;
+                            boolean forcedUpdate = rbForceUpdate.isChecked();
+                            MeshHandler.sendOTAAdvertise(hwType, nodeType, forcedUpdate);
+                            // Do something here if you want
+                            dialog.dismiss();
+                        });
+        // create alert dialog
+        final AlertDialog alertDialog = alertDialogBuilder.create();
+
+        // show it
+        alertDialog.show();
+
+        selFileButton.setOnClickListener(v12 -> openFileChooser());
     }
 
     /**
@@ -644,202 +710,81 @@ public class MeshActivity extends AppCompatActivity {
     }
 
     /**
-     * Local broadcast receiver
-     * Registered for
-     * - WiFi connection change events
-     * - Mesh network data events
-     * - Mesh network error events
+     * Open document handler to choose update file
      */
-    private final BroadcastReceiver localBroadcastReceiver = new BroadcastReceiver() {
-        @SuppressLint("DefaultLocale")
-        @Override
-        public void onReceive(final Context context, Intent intent) {
-            // Connection change
-            String intentAction = intent.getAction();
-            Log.d(DBG_TAG, "Received broadcast: " + intentAction);
-            // WiFi events
-            if (tryToConnect && (intentAction != null) && (intentAction.equals(android.net.ConnectivityManager.CONNECTIVITY_ACTION))) {
-                /* Access to connectivity manager */
-                ConnectivityManager cm = (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
-                /* WiFi connection information  */
-                NetworkInfo wifiOn;
-                if (cm != null) {
-                    wifiOn = cm.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
-                    if (wifiOn.isConnected()) {
-                        if (tryToConnect) {
-                            WifiInfo wifiInfo = wifiMgr.getConnectionInfo();
-                            if (wifiInfo.getSSID().equalsIgnoreCase("\"" + meshName + "\"")) {
-                                Log.d(DBG_TAG, "Connected to Mesh network " + wifiOn.getExtraInfo());
-                                // Get the gateway IP address
-                                DhcpInfo dhcpInfo;
-                                if (wifiMgr != null) {
-                                    // Create the mesh AP node ID from the AP MAC address
-                                    apNodeId = MeshHandler.createMeshID(wifiInfo.getBSSID());
+    private void openFileChooser() {
+        final Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("*/*");
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        if (intent.resolveActivity(getPackageManager()) != null) {
+            // file browser has been found on the device
+            startActivityForResult(intent, MeshHandler.SELECT_FILE_REQ);
+        } else {
+            LayoutInflater inflater = getLayoutInflater();
+            View layouttoast = inflater.inflate(R.layout.custom_toast, findViewById(R.id.toastcustom));
+            TextView toastText = layouttoast.findViewById(R.id.texttoast);
+            toastText.setText(getString(R.string.error_no_document_manager));
+            toastText.setGravity(Gravity.CENTER);
 
-                                    dhcpInfo = wifiMgr.getDhcpInfo();
-                                    // Get the mesh AP IP
-                                    int meshIPasNumber = dhcpInfo.gateway;
-                                    meshIP = ((meshIPasNumber & 0xFF) + "." +
-                                            ((meshIPasNumber >>>= 8) & 0xFF) + "." +
-                                            ((meshIPasNumber >>>= 8) & 0xFF) + "." +
-                                            (meshIPasNumber >>> 8 & 0xFF));
+            Toast toast = new Toast(getBaseContext());
+            toast.setView(layouttoast);
 
-                                    // Create our node ID
-                                    myNodeId = MeshHandler.createMeshID(MeshHandler.getWifiMACAddress());
-                                } else {
-                                    // We are screwed. Tell user about the problem
-                                    Log.e(DBG_TAG, "Critical Error -- cannot get WifiManager access");
-                                }
-                                // Rest has to be done on UI thread
-                                runOnUiThread(() -> {
-                                    tryToConnect = false;
+            toast.setGravity(Gravity.CENTER, 0, 0);
+            toast.setDuration(Toast.LENGTH_LONG);
 
-                                    String connMsg = "ID: " + String.valueOf(myNodeId) + " on " + meshName;
-                                    tv_mesh_conn.setText(connMsg);
+            toast.show();
+        }
+    }
 
-                                    // Set flag that we are connected
-                                    isConnected = true;
+    /**
+     * Called after user selected a file from the document chooser
+     * @param requestCode Finished activities request code
+     * @param resultCode Finished activities result
+     * @param resultData Finished activities data
+     */
+    public void onActivityResult(int requestCode, int resultCode, Intent resultData) {
+        super.onActivityResult(requestCode, resultCode, resultData);
+        Uri otaUri;
+        MeshHandler.otaPath = "";
 
-                                    startLogging();
+        if (resultCode == Activity.RESULT_OK) {
+            if (requestCode == MeshHandler.SELECT_FILE_REQ) {
+                if (resultData != null) {
+                    otaUri = resultData.getData();
+                    if (otaUri != null) {
+                        String wholeID = DocumentsContract.getDocumentId(otaUri);
 
-                                    // Connected to the Mesh network, start network task now
-                                    MeshConnector.Connect(meshIP, meshPort, getApplicationContext());
-
-                                });
-                            } else {
-                                List<WifiConfiguration> availAPs = wifiMgr.getConfiguredNetworks();
-
-                                for (int index = 0; index < availAPs.size(); index++) {
-                                    if (availAPs.get(index).SSID.equalsIgnoreCase("\""+meshName+"\"")) {
-                                        wifiMgr.disconnect();
-                                        wifiMgr.enableNetwork(availAPs.get(index).networkId, true);
-                                        if (BuildConfig.DEBUG) Log.d(DBG_TAG, "Retry to enable: " + availAPs.get(index).SSID);
-                                        wifiMgr.reconnect();
-                                        break;
-                                    }
-                                }
-                            }
+                        // TODO find a better way to get the real path to the file. F*** Android responds different in each version
+                        // Split at colon, use second item in the array
+                        if (wholeID.startsWith("raw")) { // Android 8
+                            // Path to external storage already in the path
+                            MeshHandler.otaPath = wholeID.split(":")[1];
+                        } else if (wholeID.startsWith("primary")){ // Android 9, 7, 5
+                            // We need to add the path to the external storage
+                            MeshHandler.otaPath = Environment.getExternalStorageDirectory().getPath() + "/" + wholeID.split(":")[1];
+                        } else {
+                            MeshHandler.otaPath = getString(R.string.ota_file_error);
                         }
-                    }
-                }
-            }
-
-            String dataSet;
-            DateTime now = new DateTime();
-            dataSet = String.format ("[%02d:%02d:%02d:%03d] ",
-                    now.getHourOfDay(),
-                    now.getMinuteOfHour(),
-                    now.getSecondOfMinute(),
-                    now.getMillisOfSecond());
-
-            // Mesh events
-            if (MeshConnector.MESH_DATA_RECVD.equals(intentAction)) {
-                String rcvdMsg = intent.getStringExtra("msg");
-                String oldText;
-                try {
-                    JSONObject rcvdJSON = new JSONObject(rcvdMsg);
-                    int msgType = rcvdJSON.getInt("type");
-                    long fromNode = rcvdJSON.getLong("from");
-                    switch (msgType) {
-                        case 3: // TIME_DELAY
-                            tv_mesh_err.setText(getString(R.string.mesh_event_time_delay));
-                            dataSet += "Received TIME_DELAY\n";
-                            break;
-                        case 4: // TIME_SYNC
-                            tv_mesh_err.setText(getString(R.string.mesh_event_time_sync));
-                            dataSet += "Received TIME_SYNC\n";
-                            break;
-                        case 5: // NODE_SYNC_REQUEST
-                        case 6: // NODE_SYNC_REPY
-                            if (msgType != 5) {
-                                tv_mesh_err.setText(getString(R.string.mesh_event_node_reply));
-                                dataSet += "Received NODE_SYNC_REPLY\n";
-                            } else {
-                                tv_mesh_err.setText(getString(R.string.mesh_event_node_req));
-                                dataSet += "Received NODE_SYNC_REQUEST\n";
-                            }
-                            // Generate known nodes list
-                            final String nodesListString = rcvdMsg;
+                        MeshHandler.otaFile = new File(MeshHandler.otaPath);
+                        MeshHandler.otaMD5 = MeshHandler.calculateMD5(MeshHandler.otaFile);
+                        MeshHandler.otaFileSize = MeshHandler.otaFile.length();
+                        runOnUiThread(() -> {
                             final Handler handler = new Handler();
-                            handler.post(() -> MeshHandler.generateNodeList(nodesListString));
-                            break;
-                        case 7: // CONTROL ==> deprecated
-                            dataSet += "Received CONTROL\n";
-                            break;
-                        case 8: // BROADCAST
-                            dataSet += "Broadcast:\n" + rcvdJSON.getString("msg") + "\n";
-                            if (filterId != 0) {
-                                if (fromNode != filterId) {
-                                    return;
-                                }
-                            }
-                            oldText = "BC from " + String.valueOf(fromNode) + "\n\t" + rcvdJSON.getString("msg") + "\n";
-                            tv_mesh_msgs.append(oldText);
-                            break;
-                        case 9: // SINGLE
-                            dataSet += "Single Msg:\n" + rcvdJSON.getString("msg") + "\n";
-                            if (filterId != 0) {
-                                if (fromNode != filterId) {
-                                    return;
-                                }
-                            }
-                            oldText = "SM from " + String.valueOf(fromNode) + "\n\t" + rcvdJSON.getString("msg") + "\n";
-                            tv_mesh_msgs.append(oldText);
-                            break;
-                    }
-                } catch (JSONException e) {
-                    Log.d(DBG_TAG, "Received message is not a JSON Object!");
-                    oldText = "E: " + intent.getStringExtra("msg") + "\n";
-                    tv_mesh_msgs.append(oldText);
-                    dataSet += "ERROR INVALID DATA:\n" + intent.getStringExtra("msg") + "\n";
-                }
-                if (out != null) {
-                    try {
-                        out.append(dataSet);
-                    } catch (IOException e) {
-                        e.printStackTrace();
+                            handler.post(() -> {
+                                tvOtaFile.setText(MeshHandler.otaPath.substring(MeshHandler.otaPath.lastIndexOf("/")+1));
+                                tvOtaMd5.setText(MeshHandler.otaMD5);
+                            });
+                        });
                     }
                 }
-
-                scrollViewDown();
-            } else if (MeshConnector.MESH_SOCKET_ERR.equals(intentAction)) {
-                if (MeshHandler.nodesList != null) {
-                    MeshHandler.nodesList.clear();
-                }
-                if (!userDisConRequest) {
-                    showToast(getString(R.string.mesh_lost_connection), Toast.LENGTH_LONG);
-                    MeshConnector.Connect(meshIP, meshPort, getApplicationContext());
-                    tv_mesh_err.setText(intent.getStringExtra("msg"));
-                }
-            } else if (MeshConnector.MESH_CONNECTED.equals(intentAction)) {
-                userDisConRequest = false;
-            } else if (MeshConnector.MESH_NODES.equals(intentAction)) {
-                String oldText = intent.getStringExtra("msg") + "\n";
-                tv_mesh_msgs.append(oldText);
-                scrollViewDown();
-                dataSet += intent.getStringExtra("msg") + "\n";
-                if (out != null) {
-                    try {
-                        out.append(dataSet);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-            String oldText = tv_mesh_msgs.getText().toString();
-            // Check if the text is getting too long
-            if (oldText.length() > 16535) {
-                // Quite long, remove the first 20 lines  from the text
-                int indexOfCr = 0;
-                for (int lines=0; lines < 20; lines++) {
-                    indexOfCr = oldText.indexOf("\n", indexOfCr+1);
-                }
-                oldText = oldText.substring(indexOfCr+1);
-                tv_mesh_msgs.setText(oldText);
             }
         }
-    };
+    }
 
+    /**
+     * Start logging the received messages
+     * TODO double check this works for all Android versions
+     */
     @SuppressLint("DefaultLocale")
     private void startLogging() {
         if (doLogging) {
@@ -898,6 +843,9 @@ public class MeshActivity extends AppCompatActivity {
         doLogging = true;
     }
 
+    /**
+     * Stop logging of the received messages
+     */
     private void stopLogging() {
         if (doLogging) {
             if (out != null) {
@@ -915,4 +863,232 @@ public class MeshActivity extends AppCompatActivity {
             MediaScannerConnection.scanFile(this, toBeScannedStr, null, (path, uri) -> System.out.println("SCAN COMPLETED: " + path));
         }
     }
+
+    /**
+     * Local broadcast receiver
+     * Registered for
+     * - WiFi connection change events
+     * - Mesh network data events
+     * - Mesh network error events
+     */
+    private final BroadcastReceiver localBroadcastReceiver = new BroadcastReceiver() {
+        @SuppressLint("DefaultLocale")
+        @Override
+        public void onReceive(final Context context, Intent intent) {
+            // Connection change
+            String intentAction = intent.getAction();
+            Log.d(DBG_TAG, "Received broadcast: " + intentAction);
+            // WiFi events
+            if (isConnected) {
+                // Didi we loose connection to the mesh network?
+                /* Access to connectivity manager */
+                ConnectivityManager cm = (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+                /* WiFi connection information  */
+                NetworkInfo wifiOn;
+                if (cm != null) {
+                    wifiOn = cm.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+                    if (!wifiOn.isConnected()) {
+                        isConnected = false;
+                        runOnUiThread(() -> stopConnection());
+                    }
+                }
+            }
+            if (tryToConnect && (intentAction != null) && (intentAction.equals(android.net.ConnectivityManager.CONNECTIVITY_ACTION))) {
+                /* Access to connectivity manager */
+                ConnectivityManager cm = (ConnectivityManager) getApplicationContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+                /* WiFi connection information  */
+                NetworkInfo wifiOn;
+                if (cm != null) {
+                    wifiOn = cm.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+                    if (wifiOn.isConnected()) {
+                        if (tryToConnect) {
+                            WifiInfo wifiInfo = wifiMgr.getConnectionInfo();
+                            if (wifiInfo.getSSID().equalsIgnoreCase("\"" + meshName + "\"")) {
+                                Log.d(DBG_TAG, "Connected to Mesh network " + wifiOn.getExtraInfo());
+                                // Get the gateway IP address
+                                DhcpInfo dhcpInfo;
+                                if (wifiMgr != null) {
+                                    // Create the mesh AP node ID from the AP MAC address
+                                    apNodeId = MeshHandler.createMeshID(wifiInfo.getBSSID());
+
+                                    dhcpInfo = wifiMgr.getDhcpInfo();
+                                    // Get the mesh AP IP
+                                    int meshIPasNumber = dhcpInfo.gateway;
+                                    meshIP = ((meshIPasNumber & 0xFF) + "." +
+                                            ((meshIPasNumber >>>= 8) & 0xFF) + "." +
+                                            ((meshIPasNumber >>>= 8) & 0xFF) + "." +
+                                            (meshIPasNumber >>> 8 & 0xFF));
+
+                                    // Create our node ID
+                                    myNodeId = MeshHandler.createMeshID(MeshHandler.getWifiMACAddress());
+                                } else {
+                                    // We are screwed. Tell user about the problem
+                                    Log.e(DBG_TAG, "Critical Error -- cannot get WifiManager access");
+                                }
+                                // Rest has to be done on UI thread
+                                runOnUiThread(() -> {
+                                    tryToConnect = false;
+
+                                    String connMsg = "ID: " + myNodeId + " on " + meshName;
+                                    tv_mesh_conn.setText(connMsg);
+
+                                    // Set flag that we are connected
+                                    isConnected = true;
+
+                                    startLogging();
+
+                                    // Connected to the Mesh network, start network task now
+                                    MeshCommunicator.Connect(meshIP, meshPort, getApplicationContext());
+
+                                });
+                            } else {
+                                List<WifiConfiguration> availAPs = wifiMgr.getConfiguredNetworks();
+
+                                for (int index = 0; index < availAPs.size(); index++) {
+                                    if (availAPs.get(index).SSID.equalsIgnoreCase("\""+meshName+"\"")) {
+                                        wifiMgr.disconnect();
+                                        wifiMgr.enableNetwork(availAPs.get(index).networkId, true);
+                                        if (BuildConfig.DEBUG) Log.d(DBG_TAG, "Retry to enable: " + availAPs.get(index).SSID);
+                                        wifiMgr.reconnect();
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            String dataSet;
+            DateTime now = new DateTime();
+            dataSet = String.format ("[%02d:%02d:%02d:%03d] ",
+                    now.getHourOfDay(),
+                    now.getMinuteOfHour(),
+                    now.getSecondOfMinute(),
+                    now.getMillisOfSecond());
+
+            // Mesh events
+            if (MeshCommunicator.MESH_DATA_RECVD.equals(intentAction)) {
+                String rcvdMsg = intent.getStringExtra("msg");
+                String oldText;
+                try {
+                    JSONObject rcvdJSON = new JSONObject(rcvdMsg);
+                    int msgType = rcvdJSON.getInt("type");
+                    long fromNode = rcvdJSON.getLong("from");
+                    switch (msgType) {
+                        case 3: // TIME_DELAY
+                            tv_mesh_err.setText(getString(R.string.mesh_event_time_delay));
+                            dataSet += "Received TIME_DELAY\n";
+                            break;
+                        case 4: // TIME_SYNC
+                            tv_mesh_err.setText(getString(R.string.mesh_event_time_sync));
+                            dataSet += "Received TIME_SYNC\n";
+                            break;
+                        case 5: // NODE_SYNC_REQUEST
+                        case 6: // NODE_SYNC_REPY
+                            if (msgType != 5) {
+                                tv_mesh_err.setText(getString(R.string.mesh_event_node_reply));
+                                dataSet += "Received NODE_SYNC_REPLY\n";
+                            } else {
+                                tv_mesh_err.setText(getString(R.string.mesh_event_node_req));
+                                dataSet += "Received NODE_SYNC_REQUEST\n";
+                            }
+                            // Generate known nodes list
+                            final String nodesListString = rcvdMsg;
+                            final Handler handler = new Handler();
+                            handler.post(() -> MeshHandler.generateNodeList(nodesListString));
+                            break;
+                        case 7: // CONTROL ==> deprecated
+                            dataSet += "Received CONTROL\n";
+                            break;
+                        case 8: // BROADCAST
+                            dataSet += "Broadcast:\n" + rcvdJSON.getString("msg") + "\n";
+                            if (filterId != 0) {
+                                if (fromNode != filterId) {
+                                    return;
+                                }
+                            }
+                            oldText = "BC from " + fromNode + "\n\t" + rcvdJSON.getString("msg") + "\n";
+                            tv_mesh_msgs.append(oldText);
+                            break;
+                        case 9: // SINGLE
+                            dataSet += "Single Msg:\n" + rcvdJSON.getString("msg") + "\n";
+                            // Check if the message is a OTA req message
+                            JSONObject rcvdData = new JSONObject(rcvdJSON.getString("msg"));
+                            String dataType = rcvdData.getString("plugin");
+                            if ((dataType != null) && dataType.equalsIgnoreCase("ota")) {
+                                dataType = rcvdData.getString("type");
+                                if (dataType != null) {
+                                    if (dataType.equalsIgnoreCase("version")) {
+                                        // We received a OTA advertisment!
+                                        tv_mesh_err.setText(getString(R.string.mesh_event_ota_adv));
+                                        return;
+                                    } else if (dataType.equalsIgnoreCase("request")) {
+                                        // We received a OTA block request
+                                        MeshHandler.sendOtaBlock(fromNode, rcvdData.getLong("partNo"));
+                                        tv_mesh_err.setText(getString(R.string.mesh_event_ota_req));
+                                    }
+                                }
+                            }
+                            if (filterId != 0) {
+                                if (fromNode != filterId) {
+                                    return;
+                                }
+                            }
+                            oldText = "SM from " + fromNode + "\n\t" + rcvdJSON.getString("msg") + "\n";
+                            tv_mesh_msgs.append(oldText);
+                            break;
+                    }
+                } catch (JSONException e) {
+                    Log.d(DBG_TAG, "Received message is not a JSON Object!");
+                    oldText = "E: " + intent.getStringExtra("msg") + "\n";
+                    tv_mesh_msgs.append(oldText);
+                    dataSet += "ERROR INVALID DATA:\n" + intent.getStringExtra("msg") + "\n";
+                }
+                if (out != null) {
+                    try {
+                        out.append(dataSet);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                scrollViewDown();
+            } else if (MeshCommunicator.MESH_SOCKET_ERR.equals(intentAction)) {
+                if (MeshHandler.nodesList != null) {
+                    MeshHandler.nodesList.clear();
+                }
+                if (!userDisConRequest) {
+                    showToast(getString(R.string.mesh_lost_connection), Toast.LENGTH_LONG);
+                    MeshCommunicator.Connect(meshIP, meshPort, getApplicationContext());
+                    tv_mesh_err.setText(intent.getStringExtra("msg"));
+                }
+            } else if (MeshCommunicator.MESH_CONNECTED.equals(intentAction)) {
+                userDisConRequest = false;
+            } else if (MeshCommunicator.MESH_NODES.equals(intentAction)) {
+                String oldText = intent.getStringExtra("msg") + "\n";
+                tv_mesh_msgs.append(oldText);
+                scrollViewDown();
+                dataSet += intent.getStringExtra("msg") + "\n";
+                if (out != null) {
+                    try {
+                        out.append(dataSet);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+            String oldText = tv_mesh_msgs.getText().toString();
+            // Check if the text is getting too long
+            if (oldText.length() > 16535) {
+                // Quite long, remove the first 20 lines  from the text
+                int indexOfCr = 0;
+                for (int lines=0; lines < 20; lines++) {
+                    indexOfCr = oldText.indexOf("\n", indexOfCr+1);
+                }
+                oldText = oldText.substring(indexOfCr+1);
+                tv_mesh_msgs.setText(oldText);
+            }
+        }
+    };
 }

@@ -28,7 +28,7 @@ import java.util.List;
  * href="http://developer.android.com/guide/topics/ui/settings.html">Settings
  * API Guide</a> for more information on developing a Settings UI.
  */
-public class MeshSettings extends AppCompatPreferenceActivity {
+public class MeshSettings extends MeshPreferenceActivity {
 
     /**
      * A preference value change listener that updates the preference's summary
@@ -37,7 +37,7 @@ public class MeshSettings extends AppCompatPreferenceActivity {
     private static final Preference.OnPreferenceChangeListener sBindPreferenceSummaryToValueListener = (preference, value) -> {
         String stringValue = value.toString();
 
-            preference.setSummary(stringValue);
+        preference.setSummary(stringValue);
         return true;
     };
 
@@ -75,9 +75,14 @@ public class MeshSettings extends AppCompatPreferenceActivity {
     public boolean onMenuItemSelected(int featureId, MenuItem item) {
         int id = item.getItemId();
         if (id == android.R.id.home) {
-            if (!super.onMenuItemSelected(featureId, item)) {
-                NavUtils.navigateUpFromSameTask(this);
+            if (onIsMultiPane()) {
+                finish();
+            } else {
+                if (!super.onMenuItemSelected(featureId, item)) {
+                    NavUtils.navigateUpFromSameTask(this);
+                }
             }
+            // TODO check why on tablets this doesn't work properly
             return true;
         }
         return super.onMenuItemSelected(featureId, item);
