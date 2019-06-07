@@ -1,11 +1,11 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <EditTextPreference
-        android:inputType="text"
-        android:key="msg_1"
-        android:maxLines="1"
-        android:selectAllOnFocus="true"
-        android:singleLine="true"
-        android:title="@string/pref_clear_prefs" />
+	<EditTextPreference
+		android:inputType="text"
+		android:key="msg_1"
+		android:maxLines="1"
+		android:selectAllOnFocus="true"
+		android:singleLine="true"
+		android:title="@string/pref_clear_prefs" />
 
 </PreferenceScreen>

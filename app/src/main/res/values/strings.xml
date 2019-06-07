@@ -1,74 +1,74 @@
 <resources>
-    <string name="app_name">painlessMesh</string>
-    <string name="action_settings">Settings</string>
+	<string name="app_name">painlessMesh</string>
+	<string name="action_settings">Settings</string>
 
-    <string name="error_share">Logging is still active, close connection to painlessMesh first</string>
-    <string name="error_no_document_manager">No document manager found. You need to install one</string>
+	<string name="error_share">Logging is still active, close connection to painlessMesh first</string>
+	<string name="error_no_document_manager">No document manager found. You need to install one</string>
 
-    <string name="mesh_no_connection">No connection to Mesh network</string>
+	<string name="mesh_no_connection">No connection to Mesh network</string>
 
-    <string name="mesh_disconnected">Not connected</string>
-    <string name="mesh_last_status">Last event</string>
-    <string name="mesh_connecting">Connecting</string>
-    <string name="mesh_lost_connection">Socket error, try to reconnect</string>
+	<string name="mesh_disconnected">Not connected</string>
+	<string name="mesh_last_status">Last event</string>
+	<string name="mesh_connecting">Connecting</string>
+	<string name="mesh_lost_connection">Socket error, try to reconnect</string>
 
-    <string name="mesh_list_header">Select Mesh node ID\'s</string>
-    <string name="mesh_send_receiver">Receiving node</string>
-    <string name="mesh_send_msg_header">Enter message below</string>
-    <string name="mesh_send_button">SEND</string>
-    <string name="mesh_send_broadcast">BROADCAST</string>
-    <string name="mesh_send_sel_pred">Select predefined message</string>
+	<string name="mesh_list_header">Select Mesh node ID\'s</string>
+	<string name="mesh_send_receiver">Receiving node</string>
+	<string name="mesh_send_msg_header">Enter message below</string>
+	<string name="mesh_send_button">SEND</string>
+	<string name="mesh_send_broadcast">BROADCAST</string>
+	<string name="mesh_send_sel_pred">Select predefined message</string>
 
-    <string name="mesh_filter_clear">CLEAR FILTER</string>
+	<string name="mesh_filter_clear">CLEAR FILTER</string>
 
-    <string name="mesh_event_time_delay">TIME_DELAY</string>
-    <string name="mesh_event_time_sync">TIME_SYNC</string>
-    <string name="mesh_event_node_req">NODE_SYNC_REQUEST</string>
-    <string name="mesh_event_node_reply">NODE_SYNC_REPLY</string>
-    <string name="mesh_event_ota_adv">OTA_ADV</string>
-    <string name="mesh_event_ota_req">OTA_REQ</string>
+	<string name="mesh_event_time_delay">TIME_DELAY</string>
+	<string name="mesh_event_time_sync">TIME_SYNC</string>
+	<string name="mesh_event_node_req">NODE_SYNC_REQUEST</string>
+	<string name="mesh_event_node_reply">NODE_SYNC_REPLY</string>
+	<string name="mesh_event_ota_adv">OTA_ADV</string>
+	<string name="mesh_event_ota_req">OTA_REQ</string>
 
-    <string name="title_activity_mesh_credentials">Settings</string>
+	<string name="title_activity_mesh_credentials">Settings</string>
 
-    <!-- Strings related to OTA update -->
-    <string name="ota_header">OTA details</string>
-    <string name="ota_file">OTA filename</string>
-    <string name="ota_sel_file">Select File</string>
-    <string name="ota_md5">MD5 checksum</string>
-    <string name="ota_node_type">Enter node type</string>
-    <string name="ota_hardware">Select hardware</string>
-    <string name="ota_esp32">ESP32</string>
-    <string name="ota_esp8266">ESP8266</string>
-    <string name="ota_force_hdr">Forced update</string>
-    <string name="ota_advertise">Advertise OTA</string>
-    <string name="ota_miss_type">No node type entered.\nEnter node type first!</string>
-    <string name="ota_miss_file">No file selected.\nSelect file first!</string>
-    <string name="ota_file_error">Cannot access file from SD-card</string>
+	<!-- Strings related to OTA update -->
+	<string name="ota_header">OTA details</string>
+	<string name="ota_file">OTA filename</string>
+	<string name="ota_sel_file">Select File</string>
+	<string name="ota_md5">MD5 checksum</string>
+	<string name="ota_node_type">Enter node type</string>
+	<string name="ota_hardware">Select hardware</string>
+	<string name="ota_esp32">ESP32</string>
+	<string name="ota_esp8266">ESP8266</string>
+	<string name="ota_force_hdr">Forced update</string>
+	<string name="ota_advertise">Advertise OTA</string>
+	<string name="ota_miss_type">No node type entered.\nEnter node type first!</string>
+	<string name="ota_miss_file">No file selected.\nSelect file first!</string>
+	<string name="ota_file_error">Cannot access file from SD-card</string>
 
-    <!-- Strings related to Settings -->
-    <!-- Credential settings -->
-    <string name="pref_header_credentials">painlessMesh Credentials</string>
-    <string name="pref_header_version">painlessMesh Listener</string>
+	<!-- Strings related to Settings -->
+	<!-- Credential settings -->
+	<string name="pref_header_credentials">painlessMesh Credentials</string>
+	<string name="pref_header_version">painlessMesh Listener</string>
 
-    <string name="pref_mesh_ssid">painlessMesh SSID / Name</string>
-    <string name="pref_mesh_password">painlessMesh Password</string>
-    <string name="pref_mesh_port">painlessMesh Port</string>
-    <string name="prefs_name_hint">YOUR MESH SSID</string>
-    <string name="prefs_pw_hint">YOUR MESH PASSWORD</string>
-    <string name="prefs_port_hint">5555</string>
+	<string name="pref_mesh_ssid">painlessMesh SSID / Name</string>
+	<string name="pref_mesh_password">painlessMesh Password</string>
+	<string name="pref_mesh_port">painlessMesh Port</string>
+	<string name="prefs_name_hint">YOUR MESH SSID</string>
+	<string name="prefs_pw_hint">YOUR MESH PASSWORD</string>
+	<string name="prefs_port_hint">5555</string>
 
-    <!-- Setup predefined messages -->
-    <string name="pref_header_messages">Predefined Messages</string>
+	<!-- Setup predefined messages -->
+	<string name="pref_header_messages">Predefined Messages</string>
 
-    <string name="pref_mesh_msg1">Message 1</string>
-    <string name="pref_mesh_msg2">Message 2</string>
-    <string name="pref_mesh_msg3">Message 3</string>
-    <string name="pref_mesh_msg4">Message 4</string>
-    <string name="pref_mesh_msg5">Message 5</string>
+	<string name="pref_mesh_msg1">Message 1</string>
+	<string name="pref_mesh_msg2">Message 2</string>
+	<string name="pref_mesh_msg3">Message 3</string>
+	<string name="pref_mesh_msg4">Message 4</string>
+	<string name="pref_mesh_msg5">Message 5</string>
 
-    <!-- Clear preferences -->
-    <string name="pref_header_clear_prefs">Reset Preferences</string>
-    <string name="pref_header_clear_prefs_summary"><![CDATA[>>>>WARNING!<<<<\nRESETS ALL SETTINGS TO DEFAULT!!!]]></string>
-    <string name="pref_clear_prefs">All preferences are cleared now</string>
+	<!-- Clear preferences -->
+	<string name="pref_header_clear_prefs">Reset Preferences</string>
+	<string name="pref_header_clear_prefs_summary"><![CDATA[>>>>WARNING!<<<<\nRESETS ALL SETTINGS TO DEFAULT!!!]]></string>
+	<string name="pref_clear_prefs">All preferences are cleared now</string>
 
 </resources>
